@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>InspectPro – בודק מוסמך</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://api.anthropic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com; font-src 'self' https://fonts.gstatic.com;">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(self), geolocation=(self)">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="InspectPro">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Supabase JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+/* ═══ PASTE YOUR InspectPro-v4-FINAL.html CSS HERE ═══
+   (everything between <style> and </style> from the original file)
+   For this scaffold we include the critical additions only */
+
+:root{
+  --bg:#f0f3f8;--white:#fff;--s2:#f5f7fb;--bdr:#dde3ef;--bd2:#c4cede;
+  --blue:#1a56db;--bl:#eff4ff;--bld:#1e3a8a;
+  --red:#dc2626;--rl:#fee2e2;--green:#059669;--gl:#d1fae5;
+  --orange:#d97706;--ol:#fef3c7;--purple:#7c3aed;--pl:#f5f3ff;
+  --teal:#0891b2;--tl:#ecfeff;--dark:#111827;--gray:#6b7280;
+  --sh:0 1px 3px rgba(0,0,0,.07);--sh-md:0 4px 16px rgba(0,0,0,.10);
+  --sh-lg:0 20px 40px rgba(0,0,0,.14);--r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--dark);direction:rtl;}
+button{cursor:pointer;font-family:'Heebo',sans-serif;}
+input,select,textarea{font-family:'Heebo',sans-serif;}
+
+/* ── AUTH SCREEN ── */
+#auth-screen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0f172a 100%);
+  padding:20px;
+}
+.auth-card{
+  background:var(--white);border-radius:20px;padding:0;
+  width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg);
+}
+.auth-header{
+  background:linear-gradient(135deg,#0f172a,#1e3a8a);
+  padding:32px 28px 24px;text-align:center;color:#fff;
+}
+.auth-logo{font-size:52px;margin-bottom:12px;}
+.auth-title{font-size:22px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px;}
+.auth-sub{font-size:13px;opacity:.75;}
+.auth-body{padding:28px;}
+.auth-tabs{display:flex;gap:3px;padding:3px;background:var(--s2);border-radius:9px;border:1px solid var(--bdr);margin-bottom:20px;}
+.auth-tab{flex:1;padding:8px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray);transition:all .15s;font-family:'Heebo',sans-serif;}
+.auth-tab.active{background:var(--white);color:var(--blue);box-shadow:var(--sh);}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.fg label{font-size:12px;font-weight:600;color:#4b5563;}
+.fg input{padding:10px 13px;border:1.5px solid var(--bd2);border-radius:8px;font-size:14px;outline:none;transition:border-color .15s;background:var(--white);direction:ltr;}
+.fg input[type="email"],.fg input[type="password"]{direction:ltr;}
+.fg input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.1);}
+.fg input.rtl-input{direction:rtl;}
+.btn-auth{width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;font-family:'Heebo',sans-serif;margin-top:4px;}
+.btn-auth:hover{background:var(--bld);}
+.btn-auth:disabled{opacity:.6;cursor:not-allowed;}
+.auth-divider{text-align:center;font-size:12px;color:var(--gray);margin:16px 0;position:relative;}
+.auth-divider::before,.auth-divider::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:var(--bdr);}
+.auth-divider::before{right:0;}
+.auth-divider::after{left:0;}
+.btn-google{width:100%;padding:11px;background:var(--white);color:var(--dark);border:1.5px solid var(--bdr);border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'Heebo',sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;}
+.btn-google:hover{background:var(--s2);}
+.auth-footer{text-align:center;padding:16px 28px;border-top:1px solid var(--bdr);font-size:12px;color:var(--gray);}
+.auth-msg{padding:10px 13px;border-radius:8px;font-size:12px;margin-bottom:14px;display:none;}
+.auth-msg.err{background:var(--rl);border:1px solid #fecaca;color:#991b1b;display:block;}
+.auth-msg.ok{background:var(--gl);border:1px solid #a7f3d0;color:#065f46;display:block;}
+.lang-toggle{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'Heebo',sans-serif;}
+
+/* ── SYNC INDICATOR ── */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:syncpulse 2s infinite;}
+@keyframes syncpulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.sync-saving{background:var(--orange);}
+.sync-err{background:var(--red);}
+
+/* ── USER MENU ── */
+.user-pill{display:flex;align-items:center;gap:8px;padding:5px 10px;background:var(--s2);border-radius:20px;cursor:pointer;border:1px solid var(--bdr);transition:all .15s;}
+.user-pill:hover{background:var(--bdr);}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.user-menu{position:absolute;top:48px;left:16px;background:var(--white);border-radius:10px;border:1px solid var(--bdr);box-shadow:var(--sh-md);z-index:200;min-width:180px;overflow:hidden;display:none;}
+.user-menu.open{display:block;}
+.user-menu-item{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;cursor:pointer;transition:background .1s;}
+.user-menu-item:hover{background:var(--s2);}
+.user-menu-item.danger{color:var(--red);}
+.um-sep{border-top:1px solid var(--bdr);margin:3px 0;}
+
+/* ── PLAN BADGE ── */
+.plan-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;}
+.plan-free{background:#f3f4f6;color:#374151;}
+.plan-pro{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;}
+.plan-company{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;}
+
+/* ── LOADING SCREEN ── */
+#loading-screen{
+  position:fixed;inset:0;background:#0f172a;display:flex;
+  align-items:center;justify-content:center;flex-direction:column;
+  z-index:9999;transition:opacity .4s;
+}
+.loading-logo{font-size:64px;margin-bottom:16px;animation:bounce .8s infinite;}
+.loading-title{font-size:22px;font-weight:900;color:#fff;margin-bottom:6px;}
+.loading-sub{font-size:13px;color:#475569;}
+.loading-bar{width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin-top:20px;}
+.loading-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:2px;animation:loadfill 1.5s ease-in-out;}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+@keyframes loadfill{0%{width:0;}100%{width:100%;}}
+
+/* ── FREE PLAN LIMIT BANNER ── */
+.limit-banner{
+  background:linear-gradient(135deg,var(--orange),#f59e0b);
+  color:#fff;padding:8px 16px;font-size:12px;font-weight:600;
+  text-align:center;cursor:pointer;
+}
+
+/* ── REST OF APP CSS ── */
+#app{display:flex;height:100vh;overflow:hidden;}
+#sb{width:240px;background:#0f172a;display:flex;flex-direction:column;height:100vh;overflow-y:auto;flex-shrink:0;transition:width .25s;}
+#sb.collapsed{width:64px;}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.sb-ic{width:34px;height:34px;background:linear-gradient(135deg,#3b82f6,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.sb-text{overflow:hidden;}
+.sb-title{font-size:15px;font-weight:900;color:#fff;white-space:nowrap;}
+.sb-ver{font-size:10px;color:#475569;font-family:'IBM Plex Mono',monospace;}
+.sb-toggle{margin-right:auto;background:transparent;border:none;color:#475569;font-size:16px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+#sb.collapsed .sb-text{opacity:0;width:0;overflow:hidden;}
+nav{flex:1;padding:10px 8px;overflow-y:auto;}
+.nl{font-size:9px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:1.2px;padding:8px 8px 3px;white-space:nowrap;}
+#sb.collapsed .nl{opacity:0;}
+.nb{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;border:none;background:transparent;width:100%;text-align:right;font-size:13px;color:#94a3b8;cursor:pointer;margin-bottom:1px;transition:all .15s;}
+.nb:hover{background:rgba(255,255,255,.07);color:#e2e8f0;}
+.nb.active{background:rgba(59,130,246,.25);color:#60a5fa;font-weight:700;}
+.nb .ic{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.nb-lbl{white-space:nowrap;overflow:hidden;}
+#sb.collapsed .nb-lbl{opacity:0;width:0;}
+.nb-cnt{margin-right:auto;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;font-family:'IBM Plex Mono',monospace;flex-shrink:0;}
+.cnt-r{background:#dc2626;color:#fff;}.cnt-o{background:#d97706;color:#fff;}.cnt-b{background:#3b82f6;color:#fff;}
+#sb.collapsed .nb-cnt{display:none;}
+.sb-foot{padding:12px 14px;border-top:1px solid rgba(255,255,255,.07);}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+#topbar{background:var(--white);border-bottom:1px solid var(--bdr);padding:0 20px;height:56px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:var(--sh);position:relative;}
+#pg-title{font-size:16px;font-weight:800;}
+.topbar-actions{display:flex;gap:8px;align-items:center;margin-right:auto;}
+#breadcrumb{background:var(--white);border-bottom:1px solid var(--bdr);padding:0 20px;height:38px;display:flex;align-items:center;gap:6px;flex-shrink:0;font-size:12px;color:var(--gray);}
+.bc-item{cursor:pointer;color:var(--blue);font-weight:600;}.bc-item:hover{text-decoration:underline;}
+.bc-sep{color:var(--bd2);}.bc-current{color:var(--dark);font-weight:700;}
+#content{flex:1;overflow-y:auto;padding:20px;}
+.page{display:none;animation:fadeUp .2s ease;}.page.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;border:none;white-space:nowrap;transition:all .15s;cursor:pointer;}
+.bp{background:var(--blue);color:#fff;}.bp:hover{background:var(--bld);}
+.bs{background:var(--s2);color:var(--gray);border:1px solid var(--bdr);}.bs:hover{background:var(--bdr);}
+.bg{background:var(--gl);color:#065f46;}.bd{background:var(--rl);color:#991b1b;}.bw{background:var(--ol);color:#92400e;}
+.bpu{background:var(--pl);color:var(--purple);}.bt{background:var(--tl);color:var(--teal);}
+.btn-sm{padding:5px 12px;font-size:12px;border-radius:7px;}.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px;}
+.card{background:var(--white);border-radius:var(--r);border:1px solid var(--bdr);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;}
+.ch{padding:13px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;}
+.ch h3{font-size:14px;font-weight:700;flex:1;}.cb{padding:18px;}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;font-family:'IBM Plex Mono',monospace;}
+.pk{background:var(--gl);color:#065f46;}.pw{background:var(--ol);color:#92400e;}
+.pd{background:var(--rl);color:#991b1b;}.pb{background:var(--bl);color:var(--bld);}
+.pgr{background:#f3f4f6;color:#374151;}
+.alert{padding:11px 15px;border-radius:8px;font-size:12px;display:flex;gap:9px;line-height:1.55;margin-bottom:14px;}
+.ai{background:var(--bl);border:1px solid #bfdbfe;color:var(--bld);}
+.aw{background:var(--ol);border:1px solid #fde68a;color:#92400e;}
+.ag{background:var(--gl);border:1px solid #a7f3d0;color:#065f46;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.stat{background:var(--white);border-radius:var(--r);border:1px solid var(--bdr);padding:16px 18px;box-shadow:var(--sh);}
+.stat-lbl{font-size:11px;color:var(--gray);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
+.stat-val{font-size:26px;font-weight:900;font-family:'IBM Plex Mono',monospace;line-height:1;margin-bottom:4px;}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;background:var(--s2);border-bottom:1px solid var(--bdr);}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--bdr);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}.tbl tr:hover td{background:var(--s2);}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fgfull{grid-column:1/-1;}
+.fg-app{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.fg-app label{font-size:12px;font-weight:600;color:#4b5563;}
+.fg-app input,.fg-app select,.fg-app textarea{padding:8px 11px;border:1.5px solid var(--bd2);border-radius:7px;font-size:13px;outline:none;transition:border-color .15s;background:var(--white);}
+.fg-app input:focus,.fg-app select:focus{border-color:var(--blue);}
+.page-nav{display:flex;align-items:center;gap:8px;padding:16px 0 4px;border-top:1px solid var(--bdr);margin-top:20px;flex-wrap:wrap;}
+.page-nav-title{font-size:11px;color:var(--gray);font-weight:700;text-transform:uppercase;flex-basis:100%;margin-bottom:6px;}
+.stdb{display:inline-flex;align-items:center;background:var(--tl);border:1px solid #a5f3fc;color:var(--teal);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;margin:1px;}
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);}
+.overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:16px;width:92%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh-lg);}
+.mh{padding:16px 22px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:9px;position:sticky;top:0;background:var(--white);z-index:1;}
+.mh h2{font-size:16px;font-weight:800;flex:1;}
+.mx{background:var(--s2);border:none;border-radius:7px;width:28px;height:28px;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.mb-m{padding:22px;}.mf{padding:14px 22px;border-top:1px solid var(--bdr);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--white);}
+.sep{border-top:1px solid var(--bdr);margin:14px 0;}
+.flex{display:flex;}.fac{align-items:center;}.gap2{gap:8px;}.gap3{gap:12px;}
+.mb3{margin-bottom:12px;}.mb4{margin-bottom:16px;}.mb5{margin-bottom:20px;}.mt3{margin-top:12px;}.mt4{margin-top:16px;}
+.ai-bubble{background:linear-gradient(135deg,var(--bl),#e0f2fe);border:1px solid #bfdbfe;border-radius:10px;padding:14px;font-size:13px;line-height:1.7;margin-top:12px;white-space:pre-wrap;}
+.ai-loading{display:flex;align-items:center;gap:8px;color:var(--blue);font-size:13px;padding:10px 0;}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);animation:ad 1.2s infinite;}
+.ai-dot:nth-child(2){animation-delay:.2s;}.ai-dot:nth-child(3){animation-delay:.4s;}
+@keyframes ad{0%,80%,100%{transform:scale(.7);opacity:.5;}40%{transform:scale(1);opacity:1;}}
+.chart-wrap{position:relative;height:220px;}
+@media(max-width:860px){#sb{position:fixed;z-index:300;transform:translateX(100%);transition:transform .25s;}#sb.mobile-open{transform:translateX(0);}#app{display:block;}.g4{grid-template-columns:1fr 1fr;}.g2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loading-logo">🔬</div>
+  <div class="loading-title">InspectPro</div>
+  <div class="loading-sub">בודק מוסמך – מתקני לחץ ומתקני הרמה</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none;position:relative">
+  <button class="lang-toggle" onclick="toggleAuthLang()" id="lang-btn">EN</button>
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">🔬</div>
+      <div class="auth-title" id="auth-title-txt">InspectPro</div>
+      <div class="auth-sub" id="auth-sub-txt">תכנת ניהול בדיקות לבודק מוסמך</div>
+    </div>
+    <div class="auth-body">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="authTab('login')">כניסה</button>
+        <button class="auth-tab" id="tab-signup" onclick="authTab('signup')">הרשמה</button>
+      </div>
+      <div id="auth-msg" class="auth-msg"></div>
+
+      <!-- LOGIN -->
+      <div id="form-login">
+        <div class="fg">
+          <label id="lbl-email">אימייל</label>
+          <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="fg">
+          <label id="lbl-password">סיסמה</label>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn-auth" id="login-btn" onclick="doLogin()">כניסה</button>
+        <div style="text-align:center;margin-top:10px">
+          <button onclick="doMagicLink()" style="background:none;border:none;color:var(--blue);font-size:12px;cursor:pointer;font-family:Heebo,sans-serif;text-decoration:underline">שלח לי קישור כניסה למייל</button>
+        </div>
+      </div>
+
+      <!-- SIGNUP -->
+      <div id="form-signup" style="display:none">
+        <div class="fg">
+          <label>שם מלא</label>
+          <input type="text" id="signup-name" placeholder="ישראל ישראלי" class="rtl-input" autocomplete="name" style="direction:rtl">
+        </div>
+        <div class="fg">
+          <label>אימייל</label>
+          <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="fg">
+          <label>סיסמה (לפחות 8 תווים)</label>
+          <input type="password" id="signup-password" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <button class="btn-auth" id="signup-btn" onclick="doSignup()">צור חשבון חינמי</button>
+        <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--gray)">
+          בהרשמה אתה מסכים ל<a href="#" style="color:var(--blue)">תנאי שימוש</a>
+        </div>
+      </div>
+
+      <div class="auth-divider" id="auth-div">או</div>
+      <button class="btn-google" onclick="doGoogleLogin()">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        <span id="google-btn-txt">כניסה עם Google</span>
+      </button>
+    </div>
+    <div class="auth-footer">
+      <div id="auth-footer-txt">גרסה 4.0 · ישראל + חו"ל · פקודת הבטיחות תש"ל-1970</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP (same structure as v4-FINAL) -->
+<div id="app" style="display:none">
+  <aside id="sb">
+    <div class="sb-logo">
+      <div class="sb-ic">🔬</div>
+      <div class="sb-text">
+        <div class="sb-title">InspectPro</div>
+        <div class="sb-ver">v4.0 · Cloud</div>
+      </div>
+      <button class="sb-toggle" onclick="toggleSb()">◀</button>
+    </div>
+    <nav id="sb-nav">
+      <div class="nl">ראשי</div>
+      <button class="nb active" data-p="dashboard"><span class="ic">🏠</span><span class="nb-lbl">לוח בקרה</span></button>
+      <button class="nb" data-p="equipment"><span class="ic">🏭</span><span class="nb-lbl">מתקנים</span></button>
+      <button class="nb" data-p="clients"><span class="ic">🏢</span><span class="nb-lbl">לקוחות</span></button>
+      <div class="nl">בדיקות</div>
+      <button class="nb" data-p="new-insp"><span class="ic">📋</span><span class="nb-lbl">תסקיר חדש</span></button>
+      <button class="nb" data-p="inspections"><span class="ic">📄</span><span class="nb-lbl">תסקירים</span><span class="nb-cnt cnt-r" id="cnt-pend">0</span></button>
+      <button class="nb" data-p="defects"><span class="ic">⚠️</span><span class="nb-lbl">ליקויים</span><span class="nb-cnt cnt-o" id="cnt-def">0</span></button>
+      <button class="nb" data-p="billing"><span class="ic">💰</span><span class="nb-lbl">גביה</span></button>
+      <button class="nb" data-p="calendar"><span class="ic">📅</span><span class="nb-lbl">לו"ז</span></button>
+      <div class="nl">מאגר</div>
+      <button class="nb" data-p="db-lifting"><span class="ic">🏗️</span><span class="nb-lbl">מתקני הרמה</span></button>
+      <button class="nb" data-p="db-pressure"><span class="ic">♨️</span><span class="nb-lbl">דודים ולחץ</span></button>
+      <button class="nb" data-p="db-acc"><span class="ic">⛓️</span><span class="nb-lbl">אביזרי הרמה</span></button>
+      <div class="nl">ניתוח</div>
+      <button class="nb" data-p="analytics"><span class="ic">📈</span><span class="nb-lbl">דוחות</span></button>
+      <button class="nb" data-p="ai-page"><span class="ic">🤖</span><span class="nb-lbl">ניתוח AI</span></button>
+      <div class="nl">מערכת</div>
+      <button class="nb" data-p="settings"><span class="ic">⚙️</span><span class="nb-lbl">הגדרות</span></button>
+    </nav>
+    <div class="sb-foot">
+      <div class="flex fac gap2">
+        <div class="user-avatar" id="sb-av">ב</div>
+        <div style="overflow:hidden">
+          <div style="font-size:12px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px" id="sf-name">בודק מוסמך</div>
+          <span class="plan-badge plan-free" id="sf-plan">Free</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="main">
+    <!-- FREE PLAN BANNER -->
+    <div id="free-banner" class="limit-banner" style="display:none" onclick="showUpgrade()">
+      ✨ גרסת Free – עד 10 תסקירים. שדרג ל-Pro לשימוש ללא הגבלה
+    </div>
+
+    <div id="topbar">
+      <button class="btn bs" style="display:none;padding:7px 9px" id="mob-menu" onclick="document.getElementById('sb').classList.toggle('mobile-open')">☰</button>
+      <div>
+        <div id="pg-title" style="font-size:16px;font-weight:800">לוח בקרה</div>
+        <div id="pg-sub" style="font-size:11px;color:var(--gray)">סקירה כללית</div>
+      </div>
+      <div class="topbar-actions">
+        <!-- Sync indicator -->
+        <div class="flex fac gap2" style="font-size:11px;color:var(--gray)">
+          <span class="sync-dot" id="sync-dot"></span>
+          <span id="sync-txt">מסונכרן</span>
+        </div>
+        <button class="btn bs btn-sm" onclick="exportAllExcel()">📥 Excel</button>
+        <button class="btn bp btn-sm" onclick="App.nav('new-insp')">+ תסקיר</button>
+        <!-- User menu -->
+        <div style="position:relative">
+          <div class="user-pill" onclick="toggleUserMenu()">
+            <div class="user-avatar" id="top-av">ב</div>
+            <span class="user-name" id="top-name">בודק</span>
+          </div>
+          <div class="user-menu" id="user-menu">
+            <div class="user-menu-item" onclick="App.nav('settings');closeUserMenu()">⚙️ הגדרות</div>
+            <div class="user-menu-item" onclick="showUpgrade()">⭐ שדרג לPro</div>
+            <div class="um-sep"></div>
+            <div class="user-menu-item danger" onclick="doLogout()">🚪 יציאה</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="breadcrumb">
+      <span class="bc-item" onclick="App.nav('dashboard')">🏠 ראשי</span>
+      <span class="bc-sep">›</span>
+      <span class="bc-current" id="bc-current">לוח בקרה</span>
+    </div>
+
+    <div id="content">
+      <div class="page active" id="page-dashboard"></div>
+      <div class="page" id="page-equipment"></div>
+      <div class="page" id="page-clients"></div>
+      <div class="page" id="page-new-insp"></div>
+      <div class="page" id="page-inspections"></div>
+      <div class="page" id="page-defects"></div>
+      <div class="page" id="page-billing"></div>
+      <div class="page" id="page-calendar"></div>
+      <div class="page" id="page-db-lifting"></div>
+      <div class="page" id="page-db-pressure"></div>
+      <div class="page" id="page-db-acc"></div>
+      <div class="page" id="page-analytics"></div>
+      <div class="page" id="page-ai-page"></div>
+      <div class="page" id="page-settings"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Upgrade modal -->
+<div class="overlay" id="modal-upgrade">
+  <div class="modal">
+    <div class="mh"><span>⭐</span><h2>שדרג ל-Pro</h2><button class="mx" onclick="closeModal('upgrade')">✕</button></div>
+    <div class="mb-m">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+        <div style="border:2px solid var(--bdr);border-radius:12px;padding:18px;text-align:center">
+          <div style="font-size:22px;margin-bottom:8px">🆓</div>
+          <div style="font-size:15px;font-weight:800;margin-bottom:4px">Free</div>
+          <div style="font-size:24px;font-weight:900;color:var(--blue);margin-bottom:8px">₪0</div>
+          <div style="font-size:12px;color:var(--gray);line-height:1.6">עד 10 תסקירים<br>3 לקוחות<br>10 מתקנים<br>ללא AI</div>
+        </div>
+        <div style="border:2px solid var(--blue);border-radius:12px;padding:18px;text-align:center;background:var(--bl)">
+          <div style="font-size:22px;margin-bottom:8px">⭐</div>
+          <div style="font-size:15px;font-weight:800;margin-bottom:4px">Pro</div>
+          <div style="font-size:24px;font-weight:900;color:var(--blue);margin-bottom:2px">₪350</div>
+          <div style="font-size:11px;color:var(--gray);margin-bottom:8px">לחודש</div>
+          <div style="font-size:12px;color:var(--dark);line-height:1.6">תסקירים ללא הגבלה<br>לקוחות ללא הגבלה<br>AI + ניתוח תמונות<br>גיבוי ענן + סנכרון</div>
+        </div>
+      </div>
+      <div class="alert ai" style="font-size:12px">
+        💳 תשלום בקרוב – צור קשר עכשיו לפרו ראשוני בחינם
+      </div>
+      <a href="/cdn-cgi/l/email-protection#bfd6d1d9d0ffd6d1cccfdadccbcfcdd091dcd091d6d380cccaddd5dadccb82682e68186816682b9f6823682d6817681e68159fefcdd0" class="btn bp" style="width:100%;justify-content:center;padding:13px;font-size:14px">שלח בקשה לPro חינמי ← בטא</a>
+    </div>
+  </div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════
+//  ⚠️  הגדר את פרטי Supabase שלך כאן
+//  קבל אותם מ: Supabase Dashboard → Project Settings → API
+// ════════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://ahqwcmszbingtgvsnpjg.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFocXdjbXN6YmluZ3RndnNucGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTIxNDMsImV4cCI6MjA5MTMyODE0M30.lZYoGUecrqJD_2RlYgdKDCYuVcz4DRIWwWov7_zSmrg';
+
+// ════════════════════════════════════════════════════════════
+//  SUPABASE CLIENT
+// ════════════════════════════════════════════════════════════
+const { createClient } = supabase;
+const SB = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ════════════════════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════════════════════
+const CAT_ICONS={forklift:'🚜','crane-bridge':'🏗️','crane-jib':'🔩','crane-tower':'🏙️','crane-mobile':'🚛','aerial-platform':'⬆️',elevator:'🛗','lift-platform':'🔼','vehicle-hoist':'🚗',boiler:'♨️','steam-collector':'🫙','air-collector':'💨',autoclave:'🧫','pressure-vessel':'🛢️',chain:'⛓️',hook:'🪝','sling-textile':'🎀','sling-wire':'🔗'};
+const CAT_LBL={forklift:'מלגזה','crane-bridge':'עגורן גשר','crane-tower':'מנוף צריח','crane-mobile':'מנוף נייד','aerial-platform':'במת הרמה',elevator:'מעלית','lift-platform':'שולחן הרמה',boiler:'דוד קיטור','steam-collector':'קולט קיטור','air-collector':'קולט אוויר',autoclave:'אוטוקלב','pressure-vessel':'מיכל לחץ',chain:'שרשרת','sling-textile':'רצועה','sling-wire':'כבל פלדה'};
+const RES_LBL={approved:'✅ אושר',conditional:'⚠️ בתנאי',rejected:'🚫 לא אושר'};
+const RES_CLS={approved:'pk',conditional:'pw',rejected:'pd'};
+const SEV_LBL={high:'קריטי',med:'בינוני',low:'קל'};
+const SEV_CLS={high:'pd',med:'pw',low:'pk'};
+
+// ════════════════════════════════════════════════════════════
+//  AUTH STATE
+// ════════════════════════════════════════════════════════════
+let CURRENT_USER = null;
+let PROFILE = null;
+let _authLang = 'he';
+
+async function initAuth() {
+  // Check if Supabase is configured
+  if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+    hideLoading();
+    showConfigGuide();
+    return;
+  }
+
+  const { data: { session } } = await SB.auth.getSession();
+  if (session) {
+    CURRENT_USER = session.user;
+    await loadProfile();
+    hideLoading();
+    showApp();
+  } else {
+    hideLoading();
+    showAuth();
+  }
+
+  // Listen for auth changes
+  SB.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      CURRENT_USER = session.user;
+      await loadProfile();
+      showApp();
+    } else if (event === 'SIGNED_OUT') {
+      CURRENT_USER = null;
+      PROFILE = null;
+      DB = { clients:[], equipment:[], inspections:[], defects:[], invoices:[] };
+      showAuth();
+    }
+  });
+}
+
+async function loadProfile() {
+  const { data } = await SB.from('profiles').select('*').eq('id', CURRENT_USER.id).single();
+  PROFILE = data;
+  updateUserUI();
+  await loadAllData();
+}
+
+function updateUserUI() {
+  const name = PROFILE?.name || CURRENT_USER?.email?.split('@')[0] || 'בודק';
+  const initial = name[0].toUpperCase();
+  const el = (id) => document.getElementById(id);
+  if (el('sf-name')) el('sf-name').textContent = name;
+  if (el('sb-av')) el('sb-av').textContent = initial;
+  if (el('top-av')) el('top-av').textContent = initial;
+  if (el('top-name')) el('top-name').textContent = name;
+  // Plan badge
+  const plan = PROFILE?.plan || 'free';
+  if (el('sf-plan')) {
+    el('sf-plan').textContent = plan === 'pro' ? 'Pro ⭐' : plan === 'company' ? 'Company 🏢' : 'Free';
+    el('sf-plan').className = `plan-badge plan-${plan}`;
+  }
+  // Free banner
+  if (plan === 'free' && el('free-banner')) el('free-banner').style.display = 'block';
+}
+
+// ════════════════════════════════════════════════════════════
+//  DATA LAYER – Supabase ↔ local cache
+// ════════════════════════════════════════════════════════════
+let DB = { clients:[], equipment:[], inspections:[], defects:[], invoices:[] };
+let _saving = false;
+
+async function loadAllData() {
+  setSyncStatus('loading');
+  try {
+    const uid = CURRENT_USER.id;
+    const [c, e, i, d, inv] = await Promise.all([
+      SB.from('clients').select('*').eq('user_id', uid).order('id'),
+      SB.from('equipment').select('*').eq('user_id', uid).order('id'),
+      SB.from('inspections').select('*').eq('user_id', uid).order('date', {ascending:false}),
+      SB.from('defects').select('*').eq('user_id', uid).order('id'),
+      SB.from('invoices').select('*').eq('user_id', uid).order('id'),
+    ]);
+    DB.clients    = c.data || [];
+    DB.equipment  = e.data || [];
+    DB.inspections= i.data || [];
+    DB.defects    = d.data || [];
+    DB.invoices   = inv.data || [];
+
+    // Normalize field names (Supabase uses snake_case)
+    DB.equipment  = DB.equipment.map(normalizeEquip);
+    DB.inspections= DB.inspections.map(normalizeInsp);
+    DB.defects    = DB.defects.map(normalizeDef);
+    DB.invoices   = DB.invoices.map(normalizeInv);
+
+    setSyncStatus('ok');
+    _counts();
+    App.nav('dashboard');
+  } catch(err) {
+    setSyncStatus('err');
+    console.error('Load error:', err);
+  }
+}
+
+// Normalize Supabase snake_case → camelCase for UI compatibility
+function normalizeEquip(e) {
+  return { ...e, clientId: e.client_id, modelId: e.model_id,
+    serial: e.serial_num, lastInsp: e.last_insp, nextInsp: e.next_insp };
+}
+function normalizeInsp(i) {
+  return { ...i, equipId: i.equip_id, clientId: i.client_id,
+    validUntil: i.valid_until, defects: i.defects_count,
+    sentDate: i.sent_date, emailOwner: i.email_owner, po: i.po_number };
+}
+function normalizeDef(d) {
+  return { ...d, inspId: d.insp_id, equipId: d.equip_id,
+    clientId: d.client_id, createdAt: d.created_at, closedAt: d.closed_at };
+}
+function normalizeInv(i) {
+  return { ...i, clientId: i.client_id, inspId: i.insp_id,
+    paidDate: i.paid_date };
+}
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-txt');
+  if (!dot || !txt) return;
+  dot.className = 'sync-dot ' + (state==='err'?'sync-err':state==='loading'?'sync-saving':'');
+  txt.textContent = state==='ok'?'מסונכרן':state==='loading'?'טוען...':state==='saving'?'שומר...':'שגיאה';
+}
+
+// ── CRUD helpers ──
+async function dbInsert(table, data) {
+  setSyncStatus('saving');
+  const { data: result, error } = await SB.from(table).insert({ ...data, user_id: CURRENT_USER.id }).select().single();
+  if (error) { setSyncStatus('err'); throw error; }
+  setSyncStatus('ok');
+  return result;
+}
+
+async function dbUpdate(table, id, data) {
+  setSyncStatus('saving');
+  const { error } = await SB.from(table).update(data).eq('id', id).eq('user_id', CURRENT_USER.id);
+  if (error) { setSyncStatus('err'); throw error; }
+  setSyncStatus('ok');
+}
+
+async function dbDelete(table, id) {
+  setSyncStatus('saving');
+  const { error } = await SB.from(table).delete().eq('id', id).eq('user_id', CURRENT_USER.id);
+  if (error) { setSyncStatus('err'); throw error; }
+  setSyncStatus('ok');
+}
+
+// ════════════════════════════════════════════════════════════
+//  AUTH FUNCTIONS
+// ════════════════════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if (!email || !pass) { showAuthMsg('מלא אימייל וסיסמה', 'err'); return; }
+  setBtnLoading('login-btn', true);
+  const { error } = await SB.auth.signInWithPassword({ email, password: pass });
+  setBtnLoading('login-btn', false);
+  if (error) showAuthMsg(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message, 'err');
+}
+
+async function doSignup() {
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-password').value;
+  if (!name || !email || pass.length < 8) { showAuthMsg('מלא כל השדות (סיסמה לפחות 8 תווים)', 'err'); return; }
+  setBtnLoading('signup-btn', true);
+  const { error } = await SB.auth.signUp({ email, password: pass, options: { data: { name } } });
+  setBtnLoading('signup-btn', false);
+  if (error) showAuthMsg(error.message, 'err');
+  else showAuthMsg('✅ נשלח אימות למייל – אשר ואז התחבר', 'ok');
+}
+
+async function doMagicLink() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showAuthMsg('הכנס אימייל', 'err'); return; }
+  const { error } = await SB.auth.signInWithOtp({ email });
+  if (error) showAuthMsg(error.message, 'err');
+  else showAuthMsg('✅ קישור כניסה נשלח למייל שלך', 'ok');
+}
+
+async function doGoogleLogin() {
+  const { error } = await SB.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) showAuthMsg(error.message, 'err');
+}
+
+async function doLogout() {
+  closeUserMenu();
+  await SB.auth.signOut();
+}
+
+function showAuthMsg(msg, type) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg; el.className = 'auth-msg ' + type;
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+function setBtnLoading(id, loading) {
+  const b = document.getElementById(id);
+  if (b) { b.disabled = loading; b.textContent = loading ? '...' : (id==='login-btn'?'כניסה':'צור חשבון חינמי'); }
+}
+function authTab(t) {
+  document.getElementById('form-login').style.display = t==='login'?'block':'none';
+  document.getElementById('form-signup').style.display = t==='signup'?'block':'none';
+  document.getElementById('tab-login').className = 'auth-tab'+(t==='login'?' active':'');
+  document.getElementById('tab-signup').className = 'auth-tab'+(t==='signup'?' active':'');
+  document.getElementById('auth-msg').className = 'auth-msg';
+}
+
+// ─ I18N for auth screen ─
+const AUTH_STRINGS = {
+  he: { sub:'תכנת ניהול בדיקות לבודק מוסמך', login:'כניסה', signup:'הרשמה', email:'אימייל', password:'סיסמה', google:'כניסה עם Google', footer:'גרסה 4.0 · ישראל + חו"ל · פקודת הבטיחות תש"ל-1970' },
+  en: { sub:'Inspection Management for Certified Inspectors', login:'Login', signup:'Register', email:'Email', password:'Password', google:'Sign in with Google', footer:'v4.0 · Israel + Global · EN/ISO/ASME/OSHA' }
+};
+function toggleAuthLang() {
+  _authLang = _authLang==='he' ? 'en' : 'he';
+  const s = AUTH_STRINGS[_authLang];
+  const d = document.documentElement;
+  d.lang = _authLang; d.dir = _authLang==='he'?'rtl':'ltr';
+  document.getElementById('auth-sub-txt').textContent = s.sub;
+  document.getElementById('tab-login').textContent = s.login;
+  document.getElementById('tab-signup').textContent = s.signup;
+  document.getElementById('lbl-email').textContent = s.email;
+  document.getElementById('lbl-password').textContent = s.password;
+  document.getElementById('login-btn').textContent = s.login;
+  document.getElementById('google-btn-txt').textContent = s.google;
+  document.getElementById('auth-footer-txt').textContent = s.footer;
+  document.getElementById('lang-btn').textContent = _authLang==='he'?'EN':'עב';
+}
+
+// ── User menu ──
+function toggleUserMenu() { document.getElementById('user-menu').classList.toggle('open'); }
+function closeUserMenu() { document.getElementById('user-menu').classList.remove('open'); }
+document.addEventListener('click', e => { if (!e.target.closest('.user-pill') && !e.target.closest('.user-menu')) closeUserMenu(); });
+
+// ════════════════════════════════════════════════════════════
+//  SCREEN TRANSITIONS
+// ════════════════════════════════════════════════════════════
+function hideLoading() {
+  const l = document.getElementById('loading-screen');
+  if (l) { l.style.opacity = '0'; setTimeout(() => l.style.display = 'none', 400); }
+}
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+// Config guide (shown when Supabase keys not set)
+function showConfigGuide() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  const body = document.querySelector('.auth-body');
+  if (body) body.innerHTML = `
+    <div class="alert aw" style="margin-bottom:16px">
+      ⚙️ <strong>נדרשת הגדרה חד-פעמית</strong> – חבר את Supabase
+    </div>
+    <div style="font-size:13px;line-height:1.8;color:var(--dark)">
+      <div style="margin-bottom:8px"><strong>1.</strong> פתח את הקובץ בעורך טקסט</div>
+      <div style="margin-bottom:8px"><strong>2.</strong> חפש את השורות:</div>
+      <code style="display:block;background:#1e293b;color:#7dd3fc;padding:10px;border-radius:7px;font-size:12px;margin-bottom:12px">
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';<br>
+        const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFocXdjbXN6YmluZ3RndnNucGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTIxNDMsImV4cCI6MjA5MTMyODE0M30.lZYoGUecrqJD_2RlYgdKDCYuVcz4DRIWwWov7_zSmrg';
+      </code>
+      <div style="margin-bottom:8px"><strong>3.</strong> החלף את הערכים בפרטים מ-Supabase Dashboard</div>
+      <div style="margin-bottom:14px"><strong>4.</strong> שמור → פתח מחדש</div>
+      <a href="https://supabase.com/dashboard" target="_blank" class="btn-auth" style="text-decoration:none;display:block;text-align:center">פתח Supabase Dashboard ↗</a>
+    </div>`;
+}
+
+function showUpgrade() {
+  openModal('upgrade');
+}
+
+// ════════════════════════════════════════════════════════════
+//  NAVIGATION + PAGE RENDERERS
+// ════════════════════════════════════════════════════════════
+const PG_META = {
+  dashboard:{t:'לוח בקרה',s:'סקירה כללית'},equipment:{t:'מתקנים',s:'רשימת מתקנים'},
+  clients:{t:'לקוחות',s:'ניהול לקוחות'},'new-insp':{t:'תסקיר חדש',s:''},
+  inspections:{t:'תסקירים',s:''},'defects':{t:'ליקויים',s:''},
+  billing:{t:'גביה',s:''},'calendar':{t:'לו"ז',s:''},
+  'db-lifting':{t:'מתקני הרמה',s:'מאגר'},'db-pressure':{t:'דודים ולחץ',s:'מאגר'},
+  'db-acc':{t:'אביזרי הרמה',s:'מאגר'},analytics:{t:'דוחות',s:''},
+  'ai-page':{t:'ניתוח AI',s:''},settings:{t:'הגדרות',s:''},
+};
+
+const App = {
+  cur: 'dashboard',
+  nav(p) {
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.nb[data-p]').forEach(x=>x.classList.remove('active'));
+    document.getElementById('page-'+p)?.classList.add('active');
+    document.querySelector(`.nb[data-p="${p}"]`)?.classList.add('active');
+    const m = PG_META[p]||{t:p,s:''};
+    document.getElementById('pg-title').textContent = m.t;
+    document.getElementById('pg-sub').textContent = m.s;
+    document.getElementById('bc-current').textContent = m.t;
+    this.cur = p;
+    _render(p);
+  }
+};
+document.querySelectorAll('.nb[data-p]').forEach(b=>b.addEventListener('click',()=>App.nav(b.dataset.p)));
+
+function _counts() {
+  const el = id => document.getElementById(id);
+  if(el('cnt-pend')) el('cnt-pend').textContent = DB.inspections.filter(i=>!i.sent).length;
+  if(el('cnt-def'))  el('cnt-def').textContent  = DB.defects.filter(d=>d.status==='open').length;
+}
+
+// ── HELPERS ──
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const ge  = id => document.getElementById(id);
+const cln = id => (DB.clients.find(c=>c.id===id)||{}).name||'—';
+const eql = id => { const e=DB.equipment.find(x=>x.id===id); return e?esc(e.brand+' '+e.model):''; };
+const du  = d => d ? Math.round((new Date(d)-new Date())/86400000) : 9999;
+const fmt = d => d ? new Date(d).toLocaleDateString('he-IL') : '—';
+const pill= (t,c) => `<span class="pill ${c}">${t}</span>`;
+
+function eqSt(e) {
+  const d=du(e.nextInsp||e.next_insp);
+  if(d<0) return pill('באיחור!','pd');
+  if(d<=30) return pill(d+'d','pw');
+  return pill(d+'d','pk');
+}
+
+function pageNav(btns) {
+  return `<div style="display:flex;align-items:center;gap:8px;padding:16px 0 4px;border-top:1px solid var(--bdr);margin-top:20px;flex-wrap:wrap">
+    <div style="font-size:11px;color:var(--gray);font-weight:700;text-transform:uppercase;flex-basis:100%;margin-bottom:6px">מעבר מהיר</div>
+    ${btns.map(([l,p,c])=>`<button class="btn ${c||'bs'} btn-sm" onclick="App.nav('${p}')">${l}</button>`).join('')}
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+//  PAGE RENDERERS
+// ════════════════════════════════════════════════════════════
+const pages = {};
+function _render(p) { const pg=ge('page-'+p); if(!pg) return; const fn=pages[p]; if(fn) pg.innerHTML=fn(); }
+
+// ── DASHBOARD ──
+pages.dashboard = () => {
+  const ov = DB.equipment.filter(e=>du(e.nextInsp||e.next_insp)<0).length;
+  const sn = DB.equipment.filter(e=>{const d=du(e.nextInsp||e.next_insp);return d>=0&&d<=30;}).length;
+  const rev= DB.invoices.filter(i=>i.status==='paid').reduce((a,i)=>a+i.amount,0);
+  const pnd= DB.invoices.filter(i=>i.status==='pending').reduce((a,i)=>a+i.amount,0);
+  const avs= DB.inspections.length ? Math.round(DB.inspections.reduce((a,i)=>a+(i.score||80),0)/DB.inspections.length) : 0;
+
+  return `
+<div class="g4 mb5">
+  <div class="stat" style="border-right:3px solid var(--blue)"><div class="stat-lbl">מתקנים</div><div class="stat-val" style="color:var(--blue)">${DB.equipment.length}</div><div style="font-size:11px;color:var(--gray)">${ov?ov+' באיחור':sn+' ב-30 יום'}</div></div>
+  <div class="stat" style="border-right:3px solid var(--red)"><div class="stat-lbl">ליקויים פתוחים</div><div class="stat-val" style="color:var(--red)">${DB.defects.filter(d=>d.status==='open').length}</div><div style="font-size:11px;color:var(--gray)">${DB.defects.filter(d=>d.status==='open'&&d.severity==='high').length} קריטיים</div></div>
+  <div class="stat" style="border-right:3px solid var(--green)"><div class="stat-lbl">הכנסות</div><div class="stat-val" style="color:var(--green)">₪${rev.toLocaleString()}</div><div style="font-size:11px;color:var(--orange)">ממתין: ₪${pnd.toLocaleString()}</div></div>
+  <div class="stat" style="border-right:3px solid var(--purple)"><div class="stat-lbl">ציון ממוצע</div><div class="stat-val" style="color:${avs>=85?'var(--green)':avs>=60?'var(--orange)':'var(--red)'}">${avs}%</div><div style="font-size:11px;color:var(--gray)">${DB.inspections.length} תסקירים</div></div>
+</div>
+<div class="g2 mb4">
+  <div class="card">
+    <div class="ch"><span>🔴</span><h3>בדיקות דחופות</h3></div>
+    <div style="padding:0 18px">
+      ${DB.equipment.filter(e=>du(e.nextInsp||e.next_insp)<=14).sort((a,b)=>du(a.nextInsp||a.next_insp)-du(b.nextInsp||b.next_insp)).slice(0,5).map(e=>`
+        <div class="flex fac gap3" style="padding:11px 0;border-bottom:1px solid var(--bdr)">
+          <span style="font-size:18px">${CAT_ICONS[e.type]||'🏭'}</span>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700">${esc(e.brand)} ${esc(e.model)}</div>
+          <div style="font-size:11px;color:var(--gray)">${esc(cln(e.clientId||e.client_id))}</div></div>
+          ${eqSt(e)}<button class="btn bp btn-xs" onclick="App.nav('new-insp')">בדוק</button>
+        </div>`).join('') || '<p style="padding:14px;color:var(--gray);font-size:13px">אין בדיקות דחופות 🎉</p>'}
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><span>📄</span><h3>תסקירים אחרונים</h3></div>
+    <table class="tbl"><thead><tr><th>מספר</th><th>לקוח</th><th>תוצאה</th><th>שליחה</th></tr></thead>
+    <tbody>${DB.inspections.slice(0,5).map(i=>`<tr>
+      <td><code style="font-size:11px">${i.num}</code></td>
+      <td>${esc(cln(i.clientId||i.client_id))}</td>
+      <td>${pill(RES_LBL[i.result]||i.result,RES_CLS[i.result]||'pgr')}</td>
+      <td>${i.sent?pill('נשלח','pk'):pill('טיוטה','pw')}</td>
+    </tr>`).join('')}</tbody></table>
+  </div>
+</div>
+${pageNav([['📋 תסקיר חדש','new-insp','bp'],['🏭 מתקנים','equipment','bs'],['⚠️ ליקויים','defects','bd'],['💰 גביה','billing','bs']])}`;
+};
+
+// ── EQUIPMENT ──
+pages.equipment = () => `
+<div class="flex fac gap3 mb4">
+  <input type="text" placeholder="חפש..." style="padding:8px 12px;border:1.5px solid var(--bd2);border-radius:8px;font-size:13px;width:200px" oninput="filterEq(this.value)">
+  <button class="btn bp" onclick="openAddEq()">+ הוסף מתקן</button>
+</div>
+<div class="card">
+  <table class="tbl" id="eq-tbl">
+    <thead><tr><th>מתקן</th><th>לקוח</th><th>לחץ/עומס</th><th>בדיקה הבאה</th><th>סטטוס</th><th></th></tr></thead>
+    <tbody>${DB.equipment.map(e=>`<tr id="eq-r-${e.id}">
+      <td><div class="flex fac gap2"><span style="font-size:17px">${CAT_ICONS[e.type]||'🏭'}</span><div><div style="font-weight:700;font-size:13px">${esc(e.brand)} ${esc(e.model)}</div><div style="font-size:11px;color:var(--gray)">${CAT_LBL[e.type]||e.type}</div></div></div></td>
+      <td>${esc(cln(e.clientId||e.client_id))}</td>
+      <td style="font-size:12px;font-family:'IBM Plex Mono',monospace">${esc(e.pressure||'')}</td>
+      <td style="font-size:12px">${fmt(e.nextInsp||e.next_insp)}</td>
+      <td>${eqSt(e)}</td>
+      <td><button class="btn bp btn-xs" onclick="App.nav('new-insp')">בדוק</button></td>
+    </tr>`).join('')}</tbody>
+  </table>
+</div>
+${pageNav([['📋 תסקיר חדש','new-insp','bp'],['🏢 לקוחות','clients','bs']])}`;
+
+function filterEq(q) {
+  DB.equipment.forEach(e=>{const r=ge('eq-r-'+e.id);if(r)r.style.display=(!q||`${e.brand}${e.model}`.toLowerCase().includes(q.toLowerCase()))?'':'none';});
+}
+
+// ── CLIENTS ──
+pages.clients = () => `
+<div class="flex fac gap3 mb4"><button class="btn bp" onclick="openAddClient()">+ לקוח חדש</button></div>
+<div class="g2">
+  ${DB.clients.map(c=>{
+    const eqs=DB.equipment.filter(e=>(e.clientId||e.client_id)===c.id).length;
+    const ins=DB.inspections.filter(i=>(i.clientId||i.client_id)===c.id).length;
+    return `<div class="card">
+      <div class="ch"><span>🏢</span><h3>${esc(c.name)}</h3></div>
+      <div class="cb" style="font-size:13px">
+        <div class="mb3">👤 ${esc(c.contact||'—')}</div>
+        <div class="mb3">📞 <a href="tel:${c.phone||''}" style="color:var(--blue)">${c.phone||'—'}</a></div>
+        <div class="mb3">📍 ${esc(c.address||'—')}</div>
+        <div class="sep"></div>
+        <div class="flex gap2">
+          ${pill(eqs+' מתקנים','pb')} ${pill(ins+' תסקירים','pgr')}
+          <button class="btn bp btn-xs" style="margin-right:auto" onclick="App.nav('new-insp')">+ תסקיר</button>
+        </div>
+      </div>
+    </div>`;}).join('')}
+</div>`;
+
+// ── NEW INSPECTION (simplified – links to full form in v4) ──
+pages['new-insp'] = () => `
+<div class="alert ai mb4">💡 תסקיר חדש – בחר לקוח ומתקן</div>
+<div class="card mb4"><div class="ch"><span>🏢</span><h3>בחר לקוח ומתקן</h3></div><div class="cb">
+  <div class="fgrid mb3">
+    <div class="fg-app"><label>לקוח</label>
+      <select id="fi-c-sb" onchange="updEqSelSB()">
+        <option value="">בחר לקוח...</option>
+        ${DB.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg-app"><label>מתקן</label>
+      <select id="fi-e-sb">
+        <option value="">בחר מתקן...</option>
+        ${DB.equipment.map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div class="fgrid mb3">
+    <div class="fg-app"><label>סוג בדיקה</label>
+      <select id="fi-type-sb"><option value="periodic">תקופתית</option><option value="first">ראשונה</option><option value="after-repair">אחרי תיקון</option></select>
+    </div>
+    <div class="fg-app"><label>תוצאה</label>
+      <select id="fi-res-sb"><option value="approved">✅ אושר</option><option value="conditional">⚠️ בתנאי</option><option value="rejected">🚫 לא אושר</option></select>
+    </div>
+    <div class="fg-app"><label>לחץ/עומס מאושר</label><input type="text" id="fi-press-sb" placeholder="10 בר / 5T"></div>
+    <div class="fg-app"><label>תוקף עד</label><input type="date" id="fi-valid-sb"></div>
+  </div>
+  <div class="fg-app fgfull mb3"><label>ממצאים</label><textarea id="fi-find-sb" style="min-height:72px"></textarea></div>
+  <div class="fgrid mb3">
+    <div class="fg-app"><label>סכום (₪)</label><input type="number" id="fi-amt-sb"></div>
+    <div class="fg-app"><label>מייל בעל המפעל</label><input type="email" id="fi-em-sb" dir="ltr"></div>
+  </div>
+</div></div>
+<div class="flex gap3">
+  <button class="btn bp btn-lg" onclick="saveInspSB(true)">💾 שמור ושלח לענן</button>
+  <button class="btn bs" onclick="saveInspSB(false)">שמור טיוטה</button>
+</div>
+${pageNav([['📄 תסקירים','inspections','bs'],['⚠️ ליקויים','defects','bs']])}`;
+
+function updEqSelSB() {
+  const cid = parseInt((ge('fi-c-sb')||{}).value);
+  const sel = ge('fi-e-sb'); if(!sel) return;
+  sel.innerHTML = '<option value="">בחר מתקן...</option>' +
+    DB.equipment.filter(e=>(e.clientId||e.client_id)===cid).map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)}</option>`).join('');
+}
+
+async function saveInspSB(send) {
+  const eid = parseInt((ge('fi-e-sb')||{}).value);
+  const cid = parseInt((ge('fi-c-sb')||{}).value);
+  if(!eid||!cid) { alert('בחר לקוח ומתקן'); return; }
+  const year = new Date().getFullYear();
+  const num  = `IR-${year}-${String(DB.inspections.length+1).padStart(3,'0')}`;
+  const data = {
+    equip_id: eid, client_id: cid, num,
+    date: new Date().toISOString().split('T')[0],
+    type: (ge('fi-type-sb')||{}).value||'periodic',
+    result: (ge('fi-res-sb')||{}).value||'approved',
+    inspector: PROFILE?.name||'',
+    pressure: (ge('fi-press-sb')||{}).value||'',
+    valid_until: (ge('fi-valid-sb')||{}).value||null,
+    findings: (ge('fi-find-sb')||{}).value||'',
+    score: 80, defects_count: 0, photos: [], checklist: {},
+    sent: send, sent_date: send ? new Date().toISOString().split('T')[0] : null,
+    amount: parseInt((ge('fi-amt-sb')||{}).value)||0,
+    email_owner: (ge('fi-em-sb')||{}).value||'',
+  };
+  try {
+    const result = await dbInsert('inspections', data);
+    DB.inspections.unshift(normalizeInsp(result));
+    // Update equipment next inspection
+    const e = DB.equipment.find(x=>x.id===eid);
+    if(e && data.valid_until) { await dbUpdate('equipment', eid, {next_insp: data.valid_until}); e.nextInsp=data.valid_until; }
+    _counts();
+    _showToast(`✅ תסקיר ${num} נשמר בענן!`,'green');
+    App.nav('inspections');
+  } catch(err) { alert('שגיאה בשמירה: '+err.message); }
+}
+
+// ── INSPECTIONS ──
+pages.inspections = () => `
+<div class="flex fac gap3 mb4">
+  <button class="btn bs btn-sm" onclick="exportInspExcel()">📥 Excel</button>
+</div>
+<div class="card">
+  <table class="tbl"><thead><tr><th>מספר</th><th>תאריך</th><th>לקוח</th><th>תוצאה</th><th>שליחה</th><th>סכום</th></tr></thead>
+  <tbody>${DB.inspections.map(i=>`<tr>
+    <td><code style="font-size:11px">${i.num}</code></td>
+    <td style="font-size:12px">${fmt(i.date)}</td>
+    <td>${esc(cln(i.clientId||i.client_id))}</td>
+    <td>${pill(RES_LBL[i.result]||i.result,RES_CLS[i.result]||'pgr')}</td>
+    <td>${i.sent?pill('נשלח','pk'): `<button class="btn bg btn-xs" onclick="markSentSB(${i.id})">שלח</button>`}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;font-size:12px">${i.amount?'₪'+i.amount.toLocaleString():'—'}</td>
+  </tr>`).join('')}</tbody>
+  </table>
+</div>
+${pageNav([['+ תסקיר חדש','new-insp','bp'],['⚠️ ליקויים','defects','bd']])}`;
+
+async function markSentSB(id) {
+  await dbUpdate('inspections', id, { sent: true, sent_date: new Date().toISOString().split('T')[0] });
+  const i = DB.inspections.find(x=>x.id===id);
+  if(i) { i.sent=true; i.sentDate=new Date().toISOString().split('T')[0]; }
+  App.nav('inspections');
+}
+
+// ── DEFECTS ──
+pages.defects = () => {
+  const open = DB.defects.filter(d=>d.status==='open');
+  const closed = DB.defects.filter(d=>d.status==='closed');
+  return `
+<div class="card mb4">
+  <div class="ch"><span>⚠️</span><h3>ליקויים פתוחים (${open.length})</h3></div>
+  ${open.length ? `<table class="tbl"><thead><tr><th>ליקוי</th><th>לקוח</th><th>חומרה</th><th>דד-ליין</th><th></th></tr></thead><tbody>
+  ${open.map(d=>`<tr>
+    <td style="font-weight:700;font-size:13px">${esc(d.text)}</td>
+    <td>${esc(cln(d.clientId||d.client_id))}</td>
+    <td>${pill(SEV_LBL[d.severity],SEV_CLS[d.severity])}</td>
+    <td style="font-size:12px">${fmt(d.deadline)}</td>
+    <td><button class="btn bg btn-xs" onclick="closeDefSB(${d.id})">✓ סגור</button></td>
+  </tr>`).join('')}</tbody></table>` : '<div class="alert ag" style="margin:16px">אין ליקויים פתוחים 🎉</div>'}
+</div>
+${pageNav([['📄 תסקירים','inspections','bs'],['📈 דוחות','analytics','bs']])}`;
+};
+
+async function closeDefSB(id) {
+  const today = new Date().toISOString().split('T')[0];
+  await dbUpdate('defects', id, { status:'closed', closed_at: today });
+  const d = DB.defects.find(x=>x.id===id);
+  if(d) { d.status='closed'; d.closedAt=today; }
+  _counts(); App.nav('defects');
+}
+
+// ── BILLING ──
+pages.billing = () => {
+  const paid = DB.invoices.filter(i=>i.status==='paid').reduce((a,i)=>a+i.amount,0);
+  const pend = DB.invoices.filter(i=>i.status==='pending').reduce((a,i)=>a+i.amount,0);
+  return `
+<div class="g3 mb4">
+  <div class="stat"><div class="stat-lbl">שולם</div><div class="stat-val" style="color:var(--green)">₪${paid.toLocaleString()}</div></div>
+  <div class="stat"><div class="stat-lbl">ממתין</div><div class="stat-val" style="color:var(--orange)">₪${pend.toLocaleString()}</div></div>
+  <div class="stat"><div class="stat-lbl">סה"כ</div><div class="stat-val" style="color:var(--blue)">₪${(paid+pend).toLocaleString()}</div></div>
+</div>
+<div class="card">
+  <table class="tbl"><thead><tr><th>לקוח</th><th>סכום</th><th>תאריך</th><th>סטטוס</th><th></th></tr></thead>
+  <tbody>${DB.invoices.map(i=>`<tr>
+    <td>${esc(cln(i.clientId||i.client_id))}</td>
+    <td style="font-weight:700;font-family:'IBM Plex Mono',monospace;color:${i.status==='paid'?'var(--green)':'var(--orange)'}">₪${i.amount.toLocaleString()}</td>
+    <td style="font-size:12px">${fmt(i.date)}</td>
+    <td>${i.status==='paid'?pill('שולם','pk'):pill('ממתין','pw')}</td>
+    <td>${i.status==='pending'?`<button class="btn bg btn-xs" onclick="markPaidSB(${i.id})">✓ שולם</button>`:'—'}</td>
+  </tr>`).join('')}</tbody></table>
+</div>`;
+};
+
+async function markPaidSB(id) {
+  const today = new Date().toISOString().split('T')[0];
+  await dbUpdate('invoices', id, { status:'paid', paid_date: today });
+  const inv = DB.invoices.find(x=>x.id===id);
+  if(inv) { inv.status='paid'; inv.paidDate=today; }
+  App.nav('billing');
+}
+
+// ── CALENDAR ──
+pages.calendar = () => `
+<div class="card">
+  <div class="ch"><span>📅</span><h3>בדיקות קרובות – 60 ימים</h3></div>
+  <table class="tbl"><thead><tr><th>מתקן</th><th>לקוח</th><th>תאריך</th><th>ימים</th><th>סטטוס</th></tr></thead>
+  <tbody>${DB.equipment.filter(e=>du(e.nextInsp||e.next_insp)<=60).sort((a,b)=>du(a.nextInsp||a.next_insp)-du(b.nextInsp||b.next_insp)).map(e=>{
+    const d=du(e.nextInsp||e.next_insp);
+    return `<tr>
+      <td><span>${CAT_ICONS[e.type]||'🏭'}</span> ${esc(e.brand)} ${esc(e.model)}</td>
+      <td>${esc(cln(e.clientId||e.client_id))}</td>
+      <td style="font-size:12px">${fmt(e.nextInsp||e.next_insp)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:${d<0?'var(--red)':d<=14?'var(--orange)':'var(--gray)'}">${d>0?'+':''}${d}</td>
+      <td>${eqSt(e)}</td>
+    </tr>`;}).join('')}
+  </tbody></table>
+</div>`;
+
+// ── ANALYTICS ──
+pages.analytics = () => {
+  const byRes={approved:0,conditional:0,rejected:0};
+  DB.inspections.forEach(i=>byRes[i.result]=(byRes[i.result]||0)+1);
+  return `
+<div class="flex fac gap3 mb4">
+  <button class="btn bp" onclick="exportAllExcel()">📥 Excel מלא</button>
+  <button class="btn bs" onclick="exportInspExcel()">תסקירים</button>
+</div>
+<div class="g2 mb4">
+  <div class="card"><div class="ch"><span>📊</span><h3>תוצאות בדיקות</h3></div><div class="cb"><div class="chart-wrap"><canvas id="ch-res"></canvas></div></div></div>
+  <div class="card"><div class="ch"><span>💰</span><h3>סיכום גביה</h3></div><div class="cb">
+    <div style="font-size:28px;font-weight:900;color:var(--green);font-family:'IBM Plex Mono',monospace">₪${DB.invoices.reduce((a,i)=>a+i.amount,0).toLocaleString()}</div>
+    <div style="font-size:13px;color:var(--gray);margin-top:6px">סה"כ | ${DB.invoices.filter(i=>i.status==='paid').length} שולמו</div>
+  </div></div>
+</div>
+<script>setTimeout(()=>{try{new Chart(ge('ch-res'),{type:'doughnut',data:{labels:['אושר','בתנאי','לא אושר'],datasets:[{data:[${byRes.approved},${byRes.conditional},${byRes.rejected}],backgroundColor:['#059669','#d97706','#dc2626'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});}catch(e){}},200);<\/script>`;
+};
+
+// ── AI PAGE ──
+pages['ai-page'] = () => `
+<div class="alert ai mb4">🤖 Claude AI מנתח את נתוני התסקירים בענן</div>
+<div class="card"><div class="ch"><span>💬</span><h3>שאל על הנתונים שלך</h3></div><div class="cb">
+  <div class="fg-app mb3"><label>שאלה</label><textarea id="ai-q-sb" style="min-height:72px" placeholder="אילו מתקנים לא ביצעו בדיקה מעל שנה? מה הליקויים הנפוצים?"></textarea></div>
+  <button class="btn bp" onclick="aiAskSB()">🤖 שאל Claude</button>
+  <div id="ai-r-sb"></div>
+</div></div>`;
+
+async function aiAskSB() {
+  const q=(ge('ai-q-sb')||{}).value?.trim();if(!q)return;
+  ge('ai-r-sb').innerHTML=`<div class="ai-loading"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span>מנתח...</span></div>`;
+  const ctx={inspections:DB.inspections.length,defects_open:DB.defects.filter(d=>d.status==='open').length,equipment:DB.equipment.length,overdue:DB.equipment.filter(e=>du(e.nextInsp||e.next_insp)<0).length};
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,system:'מומחה בטיחות תעסוקתית ישראלי. ענה בעברית.',messages:[{role:'user',content:`נתונים: ${JSON.stringify(ctx)}\nשאלה: ${q}`}]})});
+    const d=await r.json();const txt=d.content?.find(c=>c.type==='text')?.text||'—';
+    ge('ai-r-sb').innerHTML=DOMPurify.sanitize(`<div class="ai-bubble">${txt.replace(/\n/g,'<br>')}</div>`);
+  }catch(err){ge('ai-r-sb').innerHTML=`<div class="alert aw">שגיאה: ${err.message}</div>`;}
+}
+
+// ── SETTINGS ──
+pages.settings = () => `
+<div class="g2">
+  <div class="card"><div class="ch"><span>⚙️</span><h3>פרטי הבודק</h3></div><div class="cb">
+    <div class="fg-app"><label>שם מלא</label><input type="text" id="s-n-sb" value="${esc(PROFILE?.name||'')}" style="direction:rtl"></div>
+    <div class="fg-app"><label>מספר רישיון</label><input type="text" id="s-l-sb" value="${esc(PROFILE?.license_num||'')}"></div>
+    <div class="fg-app"><label>טלפון</label><input type="tel" id="s-p-sb" value="${esc(PROFILE?.phone||'')}" dir="ltr"></div>
+    <button class="btn bp mt3" onclick="saveProfileSB()">שמור</button>
+    <div class="sep"></div>
+    <div class="fg-app"><label>אימייל (לא ניתן לשינוי)</label><input type="text" value="${esc(CURRENT_USER?.email||'')}" disabled style="background:var(--s2)"></div>
+    <button class="btn bd btn-sm mt3" onclick="if(confirm('להתנתק?'))doLogout()">🚪 התנתק</button>
+  </div></div>
+  <div class="card"><div class="ch"><span>☁️</span><h3>ענן וגיבוי</h3></div><div class="cb">
+    <div class="alert ag mb3">✅ הנתונים שמורים בענן Supabase – גיבוי אוטומטי</div>
+    <div class="flex fac gap3">
+      <span class="sync-dot" id="sync-dot-s"></span>
+      <span id="sync-txt-s" style="font-size:12px;color:var(--gray)">מסונכרן</span>
+    </div>
+    <div class="sep"></div>
+    <button class="btn bs btn-sm" onclick="exportAllExcel()">📥 ייצוא Excel מקומי</button>
+    <div class="sep"></div>
+    <div style="font-size:12px;color:var(--gray)">גרסה v4.0 · Supabase · ${SUPABASE_URL?.replace('https://','').split('.')[0]||'—'}</div>
+  </div></div>
+</div>
+${pageNav([['📊 לוח בקרה','dashboard','bs'],['⭐ שדרג לPro','','bp']])}`;
+
+async function saveProfileSB() {
+  const updates = { name:(ge('s-n-sb')||{}).value||'', license_num:(ge('s-l-sb')||{}).value||'', phone:(ge('s-p-sb')||{}).value||'' };
+  await dbUpdate('profiles', CURRENT_USER.id, updates);
+  Object.assign(PROFILE, updates);
+  updateUserUI();
+  _showToast('✅ נשמר בענן','green');
+}
+
+// ── ADD EQUIPMENT MODAL ──
+async function openAddEq() {
+  // Simple prompt-based for now
+  const brand = prompt('יצרן:'); if(!brand) return;
+  const model = prompt('דגם:'); if(!model) return;
+  const type  = prompt('סוג (boiler/forklift/crane-bridge/air-collector/autoclave...):','boiler') || 'boiler';
+  const cid   = prompt('מזהה לקוח ('+DB.clients.map(c=>`${c.id}=${c.name}`).join(', ')+'):');
+  const data  = { brand, model, type, client_id: parseInt(cid)||null, serial_num:'', year: new Date().getFullYear(), pressure:'', location:'' };
+  try {
+    const result = await dbInsert('equipment', data);
+    DB.equipment.push(normalizeEquip(result));
+    _showToast(`✅ ${brand} ${model} נוסף!`,'green');
+    App.nav('equipment');
+  } catch(err) { alert('שגיאה: '+err.message); }
+}
+
+async function openAddClient() {
+  const name = prompt('שם לקוח:'); if(!name) return;
+  const contact = prompt('איש קשר:','') || '';
+  const phone   = prompt('טלפון:','') || '';
+  const data = { name, contact, phone, email:'', address:'' };
+  try {
+    const result = await dbInsert('clients', data);
+    DB.clients.push(result);
+    _showToast(`✅ ${name} נוסף!`,'green');
+    App.nav('clients');
+  } catch(err) { alert('שגיאה: '+err.message); }
+}
+
+// ── DB STUBS (placeholder pages) ──
+['db-lifting','db-pressure','db-acc'].forEach(p => {
+  pages[p] = () => `<div class="alert ai">📚 מאגר הדגמים יטען בקרוב – בינתיים נתוני הדגמים כלולים בתסקיר החדש</div>`;
+});
+
+// ── MODAL ──
+function openModal(id){document.getElementById('modal-'+id)?.classList.add('open');}
+function closeModal(id){document.getElementById('modal-'+id)?.classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ── SIDEBAR ──
+function toggleSb(){
+  const sb=ge('sb');sb.classList.toggle('collapsed');
+  ge('sb').querySelector('.sb-toggle').textContent=sb.classList.contains('collapsed')?'▶':'◀';
+}
+
+// ── EXPORTS ──
+function xl(data,name,fname){const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(data);XLSX.utils.book_append_sheet(wb,ws,name);XLSX.writeFile(wb,`${fname}_${new Date().toISOString().split('T')[0]}.xlsx`);}
+function exportInspExcel(){xl(DB.inspections.map(i=>({'מספר':i.num,'תאריך':i.date,'לקוח':cln(i.clientId||i.client_id),'תוצאה':i.result,'סכום':i.amount,'נשלח':i.sent?'כן':'לא'})),'תסקירים','inspections');}
+function exportAllExcel(){
+  const wb=XLSX.utils.book_new();
+  [[DB.inspections.map(i=>({'מספר':i.num,'תאריך':i.date,'לקוח':cln(i.clientId||i.client_id),'תוצאה':i.result,'ציון':i.score||80,'סכום':i.amount})),'תסקירים'],
+   [DB.equipment.map(e=>({'יצרן':e.brand,'דגם':e.model,'לקוח':cln(e.clientId||e.client_id),'בדיקה הבאה':e.nextInsp||e.next_insp})),'מתקנים'],
+   [DB.defects.map(d=>({'ליקוי':d.text,'חומרה':SEV_LBL[d.severity],'סטטוס':d.status==='open'?'פתוח':'סגור'})),'ליקויים'],
+  ].forEach(([d,n])=>{XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d),n);});
+  XLSX.writeFile(wb,`InspectPro_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// ── TOAST ──
+function _showToast(msg,color){
+  const n=document.createElement('div');
+  const bg=color==='green'?'#059669':color==='purple'?'#7c3aed':color==='orange'?'#d97706':color==='red'?'#dc2626':'#1a56db';
+  n.style.cssText=`position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:11px 22px;border-radius:9px;font-size:13px;font-weight:700;z-index:4000;box-shadow:0 4px 16px rgba(0,0,0,.2)`;
+  n.textContent=msg;document.body.appendChild(n);setTimeout(()=>n.remove(),2500);
+}
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{
+  if(e.altKey){if(e.key==='n'){e.preventDefault();App.nav('new-insp');}if(e.key==='d'){e.preventDefault();App.nav('dashboard');}}
+  if(e.key==='Escape'){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));}
+});
+
+// ── RESPONSIVE ──
+function checkMobile(){const m=window.innerWidth<=860;ge('mob-menu').style.display=m?'flex':'none';}
+window.addEventListener('resize',checkMobile);checkMobile();
+
+// ── START ──
+initAuth();
+
+// ════════════════════════════════════════════════════════
+// SECURITY & UX HARDENING LAYER – InspectPro v5
+// ════════════════════════════════════════════════════════
+
+// ── 1. Input Sanitization ──
+function sanitize(str) {
+  if (!str) return '';
+  if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(String(str),{ALLOWED_TAGS:[]});
+  return String(str).replace(/[<>"'&]/g,c=>({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;','&':'&amp;'}[c]));
+}
+
+// ── 2. Password Strength ──
+function pwdStrength(p) {
+  if (!p) return {score:0,label:'',color:''};
+  let s = 0;
+  if(p.length>=8)s++;if(p.length>=12)s++;
+  if(/[A-Z]/.test(p))s++;if(/[a-z]/.test(p))s++;
+  if(/[0-9]/.test(p))s++;if(/[^A-Za-z0-9]/.test(p))s++;
+  const level = s<=2?'weak':s<=4?'medium':'strong';
+  return {score:s, level, label:s<=2?'🔴 חלשה':s<=4?'🟡 בינונית':'🟢 חזקה', color:s<=2?'#dc2626':s<=4?'#d97706':'#059669'};
+}
+(function(){
+  const el=document.getElementById('signup-password');
+  if(!el)return;
+  el.addEventListener('input',function(){
+    let ind=document.getElementById('pwd-str');
+    if(!ind){ind=document.createElement('div');ind.id='pwd-str';ind.style.cssText='font-size:11px;margin-top:3px';this.parentElement.appendChild(ind);}
+    const st=pwdStrength(this.value);
+    ind.textContent=this.value?st.label:'';
+    ind.style.color=st.color||'';
+  });
+})();
+
+// ── 3. Rate Limiting ──
+const RateLimit={_m:{},check(k,max=5,ms=300000){
+  const now=Date.now();
+  if(!this._m[k])this._m[k]=[];
+  this._m[k]=this._m[k].filter(t=>now-t<ms);
+  if(this._m[k].length>=max){
+    const w=Math.ceil((ms-(now-this._m[k][0]))/60000);
+    return{ok:false,msg:`נסיונות רבים מדי. נסה שוב בעוד ${w} דקות`};
+  }
+  this._m[k].push(now);return{ok:true};
+}};
+
+// ── 4. Session Timeout (30 min) ──
+let _lastAct=Date.now(),_sessTimer=null;
+const SESS_TIMEOUT=30*60*1000;
+function _resetSess(){
+  _lastAct=Date.now();clearTimeout(_sessTimer);
+  _sessTimer=setTimeout(async()=>{
+    if(!CURRENT_USER)return;
+    if(Date.now()-_lastAct>=SESS_TIMEOUT){
+      await SB.auth.signOut();
+      showAuthMsg('⏱️ נותקת אוטומטית לאחר 30 דקות ללא פעילות','ok');
+    }
+  },SESS_TIMEOUT);
+}
+['mousemove','keydown','touchstart','click'].forEach(ev=>
+  document.addEventListener(ev,_resetSess,{passive:true})
+);
+_resetSess();
+
+// ── 5. Plan Enforcement ──
+const PLAN_LIMITS={
+  free:{inspections:10,clients:3,equipment:10,ai:false},
+  pro:{inspections:Infinity,clients:Infinity,equipment:Infinity,ai:true},
+  company:{inspections:Infinity,clients:Infinity,equipment:Infinity,ai:true},
+};
+function checkPlan(resource){
+  const plan=PROFILE?.plan||'free';
+  const lims=PLAN_LIMITS[plan]||PLAN_LIMITS.free;
+  if(resource==='ai'&&!lims.ai){showUpgrade();return false;}
+  const counts={inspections:DB.inspections.length,clients:DB.clients.length,equipment:DB.equipment.length};
+  if((counts[resource]||0)>=lims[resource]){
+    _showToast(`הגעת למגבלת ${resource} ב-Free – שדרג לPro`,'orange');
+    showUpgrade();return false;
+  }
+  return true;
+}
+// Wrap save functions
+const _si=saveInspSB;
+async function saveInspSB(s){if(!checkPlan('inspections'))return;await _si(s);}
+const _oc=openAddClient;
+async function openAddClient(){if(!checkPlan('clients'))return;await _oc();}
+const _oe=openAddEq;
+async function openAddEq(){if(!checkPlan('equipment'))return;await _oe();}
+
+// ── 6. Enhanced Login with rate limiting + strength ──
+const _dl=doLogin;
+async function doLogin(){
+  const r=RateLimit.check('login',5,300000);
+  if(!r.ok){showAuthMsg(r.msg,'err');return;}
+  await _dl();
+}
+const _ds=doSignup;
+async function doSignup(){
+  const p=document.getElementById('signup-password')?.value||'';
+  if(pwdStrength(p).level==='weak'){showAuthMsg('סיסמה חלשה – הוסף אותיות גדולות, מספרים וסימנים','err');return;}
+  const r=RateLimit.check('signup',3,600000);
+  if(!r.ok){showAuthMsg(r.msg,'err');return;}
+  await _ds();
+}
+
+// ── 7. Online/Offline Banner ──
+function _onlineCheck(){
+  let b=document.getElementById('offline-banner');
+  if(!navigator.onLine){
+    if(!b){b=document.createElement('div');b.id='offline-banner';
+      b.style.cssText='position:fixed;top:0;left:0;right:0;background:#d97706;color:#fff;text-align:center;padding:7px;font-size:12px;font-weight:700;z-index:9999;direction:rtl';
+      b.textContent='⚠️ אין חיבור לאינטרנט – הנתונים יסתנכרנו כשתתחבר';
+      document.body.appendChild(b);}
+  }else{if(b){b.remove();if(CURRENT_USER)loadAllData();}}
+}
+window.addEventListener('online',_onlineCheck);
+window.addEventListener('offline',_onlineCheck);
+_onlineCheck();
+
+// ── 8. Debounce ──
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+
+// ── 9. Accessibility – focus trap ──
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Tab')return;
+  const m=document.querySelector('.overlay.open .modal');if(!m)return;
+  const els=[...m.querySelectorAll('button,input,select,textarea,a[href]')].filter(el=>!el.disabled);
+  if(!els.length)return;
+  if(e.shiftKey?document.activeElement===els[0]:document.activeElement===els[els.length-1]){
+    e.preventDefault();(e.shiftKey?els[els.length-1]:els[0]).focus();
+  }
+});
+
+// ── 10. Skip to content ──
+(function(){
+  const s=document.createElement('a');s.href='#content';s.textContent='דלג לתוכן';
+  s.style.cssText='position:absolute;top:-40px;right:0;background:#1a56db;color:#fff;padding:8px 16px;border-radius:0 0 8px 0;font-size:12px;font-weight:700;z-index:9999;text-decoration:none;transition:top .15s';
+  s.addEventListener('focus',()=>s.style.top='0');s.addEventListener('blur',()=>s.style.top='-40px');
+  document.body.prepend(s);
+})();
+
+// ── 11. ARIA live region ──
+(function(){
+  const d=document.createElement('div');
+  d.setAttribute('aria-live','polite');d.setAttribute('aria-atomic','true');
+  d.style.cssText='position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden';
+  d.id='aria-live';document.body.appendChild(d);
+})();
+function ariaAnnounce(msg){
+  const d=document.getElementById('aria-live');
+  if(d){d.textContent='';setTimeout(()=>d.textContent=msg,50);}
+}
+
+// ── 12. Security log ──
+(function(){
+  const issues=[];
+  if(location.protocol!=='https:'&&location.hostname!=='localhost')issues.push('not HTTPS');
+  if(SUPABASE_URL==='YOUR_SUPABASE_URL')issues.push('Supabase not configured');
+  if(typeof DOMP
