@@ -1539,17 +1539,19 @@ const PAGE_META = {
 };
 
 function navTo(p) {
-  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-  const page = ge('page-'+p);
-  if(page) page.classList.add('active');
-  document.querySelector(`.nav-item[onclick*="'${p}'"]`)?.classList.add('active');
-  const m = PAGE_META[p]||{t:p,s:''};
-  ge('pg-title').textContent = m.t;
-  ge('pg-sub').textContent = m.s;
-  // Close mobile sidebar
-  ge('sidebar').classList.remove('mob-open');
-  renderPage(p);
+  try {
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    var page = ge('page-'+p);
+    if(page) page.classList.add('active');
+    var btn = document.querySelector('.nav-item[onclick*=\''+p+'\']');
+    if(btn) btn.classList.add('active');
+    var m = PAGE_META[p]||{t:p,s:''};
+    var title = ge('pg-title'); if(title) title.textContent = m.t;
+    var sub = ge('pg-sub'); if(sub) sub.textContent = m.s;
+    var sb = ge('sidebar'); if(sb) sb.classList.remove('mob-open');
+    renderPage(p);
+  } catch(e) { console.error('navTo error:', e); }
 }
 
 function toggleSidebar() {
