@@ -285,7 +285,7 @@ button{cursor:pointer;}
 .admin-badge{background:#7c3aed;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:8px;margin-right:6px;}
 
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -1278,8 +1278,14 @@ function lbRegister() {
 
 function lbGoogle() {
   var sb = getSB();
-  if (!sb) { lbErr('שגיאת חיבור'); return; }
-  sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+  if (!sb) { lbErr('שגיאת חיבור לבסיס הנתונים'); return; }
+  lbSpin(true);
+  sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + window.location.pathname }
+  }).then(function(res) {
+    if (res.error) { lbSpin(false); lbErr('שגיאת גוגל: ' + res.error.message); }
+  }).catch(function(e) { lbSpin(false); lbErr('שגיאת גוגל: ' + e.message); });
 }
 
 function lbSignout() {
