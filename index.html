@@ -1298,7 +1298,7 @@ function lbSignout() {
   if (ge('lb-pass')) ge('lb-pass').value = '';
 }
 
-function onLoggedIn(user) {
+async function onLoggedIn(user) {
   console.log('onLoggedIn:', user.email);
   _user = user;
   _isAdmin = user.email === ADMIN_EMAIL;
@@ -1310,54 +1310,54 @@ function onLoggedIn(user) {
     var name = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : user.email;
     if (ge('sb-user')) ge('sb-user').innerHTML = (_isAdmin ? '<span class="admin-badge">מנהל</span>' : '') + name;
   } catch(e) {}
-  loadFromSupabase(user.id);
+  try {
+    await loadFromSupabase(user.id);
+  } catch(e) {
+    console.error('Data load failed:', e);
+    DB = seed();
+    initAppAfterLogin();
+  }
 }
 
 // ════════════════════════════════════════════════
 // SUPABASE DATA LAYER
 // ════════════════════════════════════════════════
-function loadFromSupabase(userId) {
+async function loadFromSupabase(userId) {
   var sb = getSB();
   if (!sb) { initAppAfterLogin(); return; }
-  
-  var query = _isAdmin
-    ? sb.from('inspectpro_data').select('*')
-    : sb.from('inspectpro_data').select('*').eq('user_id', userId);
-
-  query.then(function(res) {
-    if (res.error || !res.data || !res.data.length) {
-      // No data yet - start fresh but keep seed data
-      DB = seed();
-      DB.settings.email = _user.email;
-      if (_user.user_metadata && _user.user_metadata.full_name) {
-        DB.settings.name = _user.user_metadata.full_name;
-      }
-      initAppAfterLogin();
-      return;
-    }
-    
+  try {
     if (_isAdmin) {
-      // Admin: merge all users' data
-      var merged = seed();
-      merged.clients = [];
-      merged.equipment = [];
-      merged.inspections = [];
-      merged.defects = [];
-      merged.invoices = [];
-      res.data.forEach(function(row) {
-        var d = row.data_json;
-        if (d.clients) merged.clients = merged.clients.concat(d.clients);
-        if (d.equipment) merged.equipment = merged.equipment.concat(d.equipment);
-        if (d.inspections) merged.inspections = merged.inspections.concat(d.inspections);
-        if (d.defects) merged.defects = merged.defects.concat(d.defects);
-        if (d.invoices) merged.invoices = merged.invoices.concat(d.invoices);
-      });
-      DB = merged;
+      var res = await sb.from('inspectpro_data').select('*');
+      if (res.error) throw res.error;
+      if (res.data && res.data.length) {
+        var merged = seed();
+        merged.clients=[]; merged.equipment=[]; merged.inspections=[]; merged.defects=[]; merged.invoices=[];
+        res.data.forEach(function(row) {
+          var d = row.data_json;
+          if (d.clients) merged.clients = merged.clients.concat(d.clients);
+          if (d.equipment) merged.equipment = merged.equipment.concat(d.equipment);
+          if (d.inspections) merged.inspections = merged.inspections.concat(d.inspections);
+          if (d.defects) merged.defects = merged.defects.concat(d.defects);
+          if (d.invoices) merged.invoices = merged.invoices.concat(d.invoices);
+        });
+        DB = merged;
+      } else { DB = seed(); }
     } else {
-      DB = JSON.parse(JSON.stringify(res.data[0].data_json));
+      var res = await sb.from('inspectpro_data').select('*').eq('user_id', userId).maybeSingle();
+      if (res.error) throw res.error;
+      if (res.data && res.data.data_json) {
+        DB = JSON.parse(JSON.stringify(res.data.data_json));
+      } else {
+        DB = seed();
+        DB.settings.email = _user.email;
+        if (_user.user_metadata && _user.user_metadata.full_name) DB.settings.name = _user.user_metadata.full_name;
+      }
     }
-    initAppAfterLogin();
-  }).catch(function() { initAppAfterLogin(); });
+  } catch(e) {
+    console.error('loadFromSupabase error:', e);
+    DB = seed();
+  }
+  initAppAfterLogin();
 }
 
 function saveDB() {
