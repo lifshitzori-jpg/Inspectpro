@@ -298,8 +298,14 @@ var _user = null;
 var _isAdmin = false;
 
 function getSB() {
-  if (!_sb && window.supabase) {
-    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if (!_sb) {
+    try {
+      if (window.supabase) {
+        _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch(e) {
+      console.warn('Supabase init failed:', e.message);
+    }
   }
   return _sb;
 }
@@ -470,7 +476,10 @@ function initAppAfterLogin() {
 window.addEventListener('load', function() {
   var sb = getSB();
   if (!sb) {
-    console.warn('Supabase not available');
+    console.warn('Supabase not available - showing login screen');
+    // Still show the login screen
+    var lw = document.getElementById('login-wrap');
+    if (lw) lw.style.display = 'flex';
     return;
   }
   sb.auth.getSession().then(function(res) {
@@ -3446,27 +3455,8 @@ window.addEventListener('resize',checkMobile);
 
 // ════════════════════════════════════════════════════════
 // INIT
-/ ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // Init handled by onLoggedIn after auth
-ntListener('DOMContentLoaded',()=>{
-  // Set today's date
-  const today=new Date().toISOString().split('T')[0];
-  if(ge('i-date'))ge('i-date').value=today;
-  ge('i-')?.addEventListener('change',calcNextInspDate);
-  ge('i-insp-type')?.addEventListener('change',calcNextInspDate);
-  calcNextInspDate();
-  // Auto gen report number
-  autoGenInspNum();
-  // Populate inspection selects
-  populateInspSelects();
-  // Init signature
-  setTimeout(initSig,200);
-  // Render dashboard
-  renderDashboard();
-  updateBadges();
-  checkMobile();
-  ge('sb-user').textContent=(DB.settings.name||'בודק')+' – בודק מוסמך';
-});
 </script>
 </body>
 </html>
