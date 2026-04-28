@@ -259,7 +259,7 @@ button{cursor:pointer;}
 }
 
 /* ── LOGIN ── */
-#login-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);display:flex;align-items:center;justify-content:center;z-index:9999;}
+#login-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);display:none;align-items:center;justify-content:center;z-index:9999;}
 #login-wrap.hidden{display:none!important;}
 .lb{background:#fff;border-radius:18px;padding:32px;width:92%;max-width:360px;box-shadow:0 24px 60px rgba(0,0,0,.4);}
 .lb-logo{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
@@ -1286,7 +1286,7 @@ function lbSignout() {
   var sb = getSB();
   if (sb) sb.auth.signOut();
   _user = null; _isAdmin = false;
-  ge('login-wrap').classList.remove('hidden');
+  showLoginScreen();
   if (ge('lb-email')) ge('lb-email').value = '';
   if (ge('lb-pass')) ge('lb-pass').value = '';
 }
@@ -1294,7 +1294,8 @@ function lbSignout() {
 function onLoggedIn(user) {
   _user = user;
   _isAdmin = user.email === ADMIN_EMAIL;
-  ge('login-wrap').classList.add('hidden');
+  var lw = ge('login-wrap');
+  if (lw) { lw.classList.remove('active'); lw.style.display = 'none'; }
   
   // Set user name in sidebar
   var name = user.user_metadata && user.user_metadata.full_name ? user.user_metadata.full_name : user.email;
@@ -1373,47 +1374,62 @@ function saveDB() {
 }
 
 function initAppAfterLogin() {
-  renderDashboard();
-  updateBadges();
-  checkMobile();
-  populateInspSelects();
-  setTimeout(function() { if(typeof initSig === 'function') initSig(); }, 200);
-  var today = new Date().toISOString().split('T')[0];
-  if (ge('i-date')) ge('i-date').value = today;
-  if (typeof calcNextInspDate === 'function') calcNextInspDate();
-  if (typeof autoGenInspNum === 'function') autoGenInspNum();
+  try {
+    // Hide login screen
+    var lw = ge('login-wrap');
+    if (lw) { lw.classList.remove('active'); lw.style.display = 'none'; }
+    
+    renderDashboard();
+    updateBadges();
+    checkMobile();
+    populateInspSelects();
+    setTimeout(function() { if(typeof initSig === 'function') initSig(); }, 200);
+    var today = new Date().toISOString().split('T')[0];
+    if (ge('i-date')) ge('i-date').value = today;
+    if (typeof calcNextInspDate === 'function') calcNextInspDate();
+    if (typeof autoGenInspNum === 'function') autoGenInspNum();
+  } catch(e) { console.error('initAppAfterLogin error:', e); }
 }
 
 // ════════════════════════════════════════════════
 // INIT - Check session on load
 // ════════════════════════════════════════════════
 window.addEventListener('load', function() {
-  var sb = getSB();
-  if (!sb) {
-    console.warn('Supabase not available - showing login screen');
-    // Still show the login screen
-    var lw = document.getElementById('login-wrap');
-    if (lw) lw.style.display = 'flex';
-    return;
-  }
-  sb.auth.getSession().then(function(res) {
-    if (res.data && res.data.session) {
-      onLoggedIn(res.data.session.user);
-    }
-    // else: login screen already visible
-  });
-  
-  // Listen for auth changes (Google OAuth redirect)
-  sb.auth.onAuthStateChange(function(event, session) {
-    if (event === 'SIGNED_IN' && session && !_user) {
-      onLoggedIn(session.user);
-    }
-  });
-  
   // Enter key on password
   var p = ge('lb-pass');
   if (p) p.addEventListener('keydown', function(e) { if (e.key === 'Enter') lbLogin(); });
+
+  // Try Supabase session
+  try {
+    var sb = getSB();
+    if (sb) {
+      sb.auth.getSession().then(function(res) {
+        if (res.data && res.data.session) {
+          onLoggedIn(res.data.session.user);
+        } else {
+          // No session - show login screen
+          showLoginScreen();
+        }
+      }).catch(function() { showLoginScreen(); });
+      
+      sb.auth.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_IN' && session && !_user) {
+          onLoggedIn(session.user);
+        }
+      });
+    } else {
+      showLoginScreen();
+    }
+  } catch(e) {
+    console.warn('Supabase error:', e.message);
+    showLoginScreen();
+  }
 });
+
+function showLoginScreen() {
+  var lw = ge('login-wrap');
+  if (lw) { lw.classList.add('active'); }
+}
 
 'use strict';
 
