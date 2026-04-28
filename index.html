@@ -1298,16 +1298,17 @@ function lbSignout() {
 }
 
 function onLoggedIn(user) {
+  console.log('onLoggedIn:', user.email);
   _user = user;
   _isAdmin = user.email === ADMIN_EMAIL;
   var lw = ge('login-wrap');
-  if (lw) { lw.style.display = 'none'; lw.classList.add('hidden'); }
+  if (lw) { lw.style.setProperty('display','none','important'); lw.classList.add('hidden'); }
   var app = ge('app');
   if (app) app.style.display = 'flex';
-  var name = user.user_metadata && user.user_metadata.full_name ? user.user_metadata.full_name : user.email;
-  if (ge('sb-user')) {
-    ge('sb-user').innerHTML = (_isAdmin ? '<span class="admin-badge">מנהל</span>' : '') + name;
-  }
+  try {
+    var name = (user.user_metadata && user.user_metadata.full_name) ? user.user_metadata.full_name : user.email;
+    if (ge('sb-user')) ge('sb-user').innerHTML = (_isAdmin ? '<span class="admin-badge">מנהל</span>' : '') + name;
+  } catch(e) {}
   loadFromSupabase(user.id);
 }
 
@@ -3478,33 +3479,32 @@ window.addEventListener('resize',checkMobile);
 // INIT
 // ════════════════════════════════════════════════════════
 // Init handled by onLoggedIn after auth
-window.addEventListener('DOMContentLoaded', async function() {
+window.addEventListener('DOMContentLoaded', function() {
   var sb = getSB();
-  if (sb) {
+  async function checkSession() {
+    if (!sb) { if (ge('login-wrap')) ge('login-wrap').style.display='flex'; return; }
     try {
       var r = await sb.auth.getSession();
-      var session = r.data && r.data.session;
-      if (session) {
-        onLoggedIn(session.user);
+      if (r.data && r.data.session) {
+        onLoggedIn(r.data.session.user);
       } else {
-        ge('login-wrap').style.display = 'flex';
-        var app = ge('app'); if (app) app.style.display = 'none';
+        if (ge('login-wrap')) ge('login-wrap').style.display='flex';
+        if (ge('app')) ge('app').style.display='none';
       }
-      sb.auth.onAuthStateChange(function(event, session) {
-        if (event === 'SIGNED_IN' && session && !_user) {
-          onLoggedIn(session.user);
-        }
-      });
     } catch(e) {
-      ge('login-wrap').style.display = 'flex';
+      console.error('Session check error:', e);
+      if (ge('login-wrap')) ge('login-wrap').style.display='flex';
     }
-  } else {
-    ge('login-wrap').style.display = 'flex';
+    sb.auth.onAuthStateChange(function(event, session) {
+      if (event === 'SIGNED_IN' && session) onLoggedIn(session.user);
+      if (event === 'SIGNED_OUT') location.reload();
+    });
   }
+  checkSession();
   var today = new Date().toISOString().split('T')[0];
-  if (ge('i-date')) { ge('i-date').value = today; ge('i-date').addEventListener('change', calcNextInspDate); }
+  if (ge('i-date')) { ge('i-date').value=today; ge('i-date').addEventListener('change', calcNextInspDate); }
   if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
-  try { calcNextInspDate(); autoGenInspNum(); populateInspSelects(); setTimeout(initSig, 200); } catch(e) {}
+  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
   checkMobile();
 });
 </script>
