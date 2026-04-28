@@ -259,7 +259,7 @@ button{cursor:pointer;}
 }
 
 /* ── LOGIN ── */
-#login-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);display:none;align-items:center;justify-content:center;z-index:9999;}
+#login-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);display:flex;align-items:center;justify-content:center;z-index:9999;}
 #login-wrap.hidden{display:none!important;}
 .lb{background:#fff;border-radius:18px;padding:32px;width:92%;max-width:360px;box-shadow:0 24px 60px rgba(0,0,0,.4);}
 .lb-logo{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
@@ -3490,10 +3490,7 @@ window.addEventListener('DOMContentLoaded', function() {
     autoGenInspNum();
     populateInspSelects();
     setTimeout(initSig, 200);
-    if (!_user) {
-      renderDashboard();
-      updateBadges();
-    }
+
   } catch(e) { console.error('Init error:', e); }
   checkMobile();
   if (ge('sb-user')) ge('sb-user').textContent = (DB.settings.name || 'בודק') + ' – בודק מוסמך';
