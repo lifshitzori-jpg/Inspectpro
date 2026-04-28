@@ -3457,6 +3457,24 @@ window.addEventListener('resize',checkMobile);
 // INIT
 // ════════════════════════════════════════════════════════
 // Init handled by onLoggedIn after auth
+window.addEventListener('DOMContentLoaded', function() {
+  var today = new Date().toISOString().split('T')[0];
+  if (ge('i-date')) ge('i-date').value = today;
+  if (ge('i-date')) ge('i-date').addEventListener('change', calcNextInspDate);
+  if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
+  try {
+    calcNextInspDate();
+    autoGenInspNum();
+    populateInspSelects();
+    setTimeout(initSig, 200);
+    if (!_user) {
+      renderDashboard();
+      updateBadges();
+    }
+  } catch(e) { console.error('Init error:', e); }
+  checkMobile();
+  if (ge('sb-user')) ge('sb-user').textContent = (DB.settings.name || 'בודק') + ' – בודק מוסמך';
+});
 </script>
 </body>
 </html>
