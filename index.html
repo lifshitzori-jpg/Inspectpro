@@ -261,6 +261,7 @@ button{cursor:pointer;}
 /* ── LOGIN ── */
 #login-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);display:flex;align-items:center;justify-content:center;z-index:9999;}
 #login-wrap.hidden{display:none!important;visibility:hidden;pointer-events:none;}
+.hidden{display:none!important;}
 .lb{background:#fff;border-radius:18px;padding:32px;width:92%;max-width:360px;box-shadow:0 24px 60px rgba(0,0,0,.4);}
 .lb-logo{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
 .lb-icon{width:44px;height:44px;background:linear-gradient(135deg,#3b82f6,#7c3aed);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;}
@@ -3482,30 +3483,33 @@ window.addEventListener('resize',checkMobile);
 window.addEventListener('DOMContentLoaded', function() {
   var sb = getSB();
   async function checkSession() {
-    if (!sb) { if (ge('login-wrap')) ge('login-wrap').style.display='flex'; return; }
     try {
+      if (!sb) { document.getElementById('login-wrap').style.display='flex'; return; }
       var r = await sb.auth.getSession();
       if (r.data && r.data.session) {
+        document.getElementById('app').style.display='flex';
+        document.getElementById('login-wrap').style.display='none';
         onLoggedIn(r.data.session.user);
       } else {
-        if (ge('login-wrap')) ge('login-wrap').style.display='flex';
-        if (ge('app')) ge('app').style.display='none';
+        document.getElementById('login-wrap').style.display='flex';
+        document.getElementById('app').style.display='none';
       }
     } catch(e) {
-      console.error('Session check error:', e);
-      if (ge('login-wrap')) ge('login-wrap').style.display='flex';
+      console.error('Init error:', e);
+      document.getElementById('login-wrap').style.display='flex';
     }
     sb.auth.onAuthStateChange(function(event, session) {
-      if (event === 'SIGNED_IN' && session) onLoggedIn(session.user);
-      if (event === 'SIGNED_OUT') location.reload();
+      if (event === 'SIGNED_IN' && session) {
+        location.reload();
+      }
     });
   }
   checkSession();
+  checkMobile();
+  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
   var today = new Date().toISOString().split('T')[0];
   if (ge('i-date')) { ge('i-date').value=today; ge('i-date').addEventListener('change', calcNextInspDate); }
   if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
-  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
-  checkMobile();
 });
 </script>
 
