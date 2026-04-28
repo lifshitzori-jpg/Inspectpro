@@ -3485,6 +3485,16 @@ window.addEventListener('DOMContentLoaded', function() {
   async function checkSession() {
     try {
       if (!sb) { document.getElementById('login-wrap').style.display='flex'; return; }
+      // זיהוי חזרה מ-Google redirect
+      if (window.location.hash.includes('access_token=')) {
+        setTimeout(async function() {
+          var r = await sb.auth.getSession();
+          if (r.data && r.data.session) {
+            window.location.href = window.location.pathname;
+          }
+        }, 500);
+        return;
+      }
       var r = await sb.auth.getSession();
       if (r.data && r.data.session) {
         document.getElementById('app').style.display='flex';
@@ -3500,7 +3510,9 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     sb.auth.onAuthStateChange(function(event, session) {
       if (event === 'SIGNED_IN' && session) {
-        location.reload();
+        document.getElementById('app').style.display='flex';
+        document.getElementById('login-wrap').style.display='none';
+        onLoggedIn(session.user);
       }
     });
   }
