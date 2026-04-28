@@ -3480,7 +3480,18 @@ window.addEventListener('resize',checkMobile);
 // INIT
 // ════════════════════════════════════════════════════════
 // Init handled by onLoggedIn after auth
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', async function() {
+  var sb = getSB();
+  if (sb) {
+    var res = await sb.auth.getSession();
+    if (res.data && res.data.session) {
+      onLoggedIn(res.data.session.user);
+    } else {
+      ge('login-wrap').classList.remove('hidden');
+    }
+  } else {
+    ge('login-wrap').classList.remove('hidden');
+  }
   var today = new Date().toISOString().split('T')[0];
   if (ge('i-date')) ge('i-date').value = today;
   if (ge('i-date')) ge('i-date').addEventListener('change', calcNextInspDate);
@@ -3490,7 +3501,6 @@ window.addEventListener('DOMContentLoaded', function() {
     autoGenInspNum();
     populateInspSelects();
     setTimeout(initSig, 200);
-
   } catch(e) { console.error('Init error:', e); }
   checkMobile();
   if (ge('sb-user')) ge('sb-user').textContent = (DB.settings.name || 'בודק') + ' – בודק מוסמך';
