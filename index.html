@@ -1519,8 +1519,8 @@ const ge = id => document.getElementById(id);
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt = d => d ? new Date(d).toLocaleDateString('he-IL') : '—';
 const daysUntil = d => d ? Math.round((new Date(d)-new Date())/86400000) : 9999;
-const cln = id => (DB.clients.find(c=>c.id===id)||{}).name||'—';
-const eqn = id => { const e=DB.equipment.find(x=>x.id===id); return e?`${e.brand} ${e.model}`:'—'; };
+const cln = id => (DB.clients.find(c=>String(c.id)===String(id))||{}).name||'—';
+const eqn = id => { const e=DB.equipment.find(x=>String(x.id)===String(id)); return e?`${e.brand} ${e.model}`:'—'; };
 
 function pill(t,cls) { return `<span class="pill pill-${cls}">${t}</span>`; }
 function resPill(r) {
@@ -1823,7 +1823,7 @@ function renderDashboard() {
       <div>${eqStatusPill(e)}</div>
     </div>`).join('') : '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">אין בדיקות דחופות 🎉</div>';
 
-  ge('dash-reports').innerHTML = DB.inspections.slice(-5).reverse().map(i=>`<tr style="cursor:pointer" onclick="openReportView(${i.id})">
+  ge('dash-reports').innerHTML = DB.inspections.slice(-5).reverse().map(i=>`<tr style="cursor:pointer" onclick="openReportView('${i.id}')">
     <td><code style="font-size:11px;font-family:IBM Plex Mono,monospace">${esc(i.num)}</code></td>
     <td>${esc(cln(i.clientId))}</td>
     <td>${resPill(i.result)}</td>
@@ -2648,13 +2648,13 @@ function renderReports(data) {
   const list = data || DB.inspections;
   const tbody = ge('reports-tbl');
   if(!tbody) return;
-  tbody.innerHTML = list.map(i=>`<tr style="cursor:pointer" onclick="openReportView(${i.id})">
-    <td><code style="font-size:11px;font-family:IBM Plex Mono,monospace">${esc(i.num)}</code></td>
-    <td style="font-size:12px">${fmt(i.date)}</td>
-    <td>${esc(cln(i.clientId))}</td>
-    <td style="font-size:12px">${esc(eqn(i.equipId))}</td>
+  tbody.innerHTML = list.map(i=>`<tr style="cursor:pointer" onclick="openReportView('${i.id}')">
+    <td><code style="font-size:11px;font-family:IBM Plex Mono,monospace">${esc(i.num||i.inspection_num)}</code></td>
+    <td style="font-size:12px">${fmt(i.date||i.inspection_date)}</td>
+    <td>${esc(cln(i.clientId||i.client_id))}</td>
+    <td style="font-size:12px">${esc(eqn(i.equipId||i.equipment_id))}</td>
     <td>${resPill(i.result)}</td>
-    <td onclick="event.stopPropagation()">${i.sent?pill('נשלח','green'):`<button class="btn btn-success btn-xs" onclick="markSent(${i.id})">שלח</button>`}</td>
+    <td onclick="event.stopPropagation()">${(i.sent||i.is_sent)?pill('נשלח','green'):`<button class="btn btn-success btn-xs" onclick="markSent('${i.id}')">שלח</button>`}</td>
     <td style="font-family:'IBM Plex Mono',monospace;font-size:12px">${i.amount?'₪'+i.amount.toLocaleString():'—'}</td>
   </tr>`).join('');
 }
@@ -2671,7 +2671,7 @@ function filterReports(q) {
 
 
 function openReportView(id) {
-  var i=DB.inspections.find(function(x){return x.id===id;}); if(!i) return;
+  var i=DB.inspections.find(function(x){return String(x.id)===String(id);}); if(!i) return;
   var eq=DB.equipment.find(function(x){return x.id===i.equipId;});
   var cl=DB.clients.find(function(x){return x.id===i.clientId;});
   var defs=DB.defects.filter(function(d){return d.inspId===id;});
