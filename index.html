@@ -23,7 +23,7 @@ button,input,select,textarea{font-family:inherit;}
 button{cursor:pointer;}
 
 /* ── LAYOUT ── */
-#app{display:none;height:100vh;overflow:hidden;}
+#app{display:none;height:100%;overflow:hidden;}
 #sidebar{width:230px;background:#0f172a;display:flex;flex-direction:column;height:100vh;flex-shrink:0;transition:width .25s;overflow:hidden;}
 #sidebar.collapsed{width:58px;}
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
@@ -122,7 +122,8 @@ button{cursor:pointer;}
 .tabs{display:flex;gap:2px;padding:3px;background:var(--s2);border-radius:9px;border:1px solid var(--bdr);}
 .tab{flex:1;padding:7px 10px;border-radius:7px;border:none;background:transparent;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap;}
 .tab.active{background:var(--white);color:var(--blue);box-shadow:var(--sh);}
-.tab-content{display:none;}.tab-content.active{display:block;}
+.tab-content, .insp-tab-content { display: none; }
+.tab-content.active, .insp-tab-content.active { display: block; animation: fadeUp .2s ease; }
 
 /* ── OVERLAY / MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(3px);}
@@ -1202,8 +1203,7 @@ button{cursor:pointer;}
       <div class="alert alert-info mb3">📷 צלם את טבלת העומסים – AI יחלץ את הנתונים אוטומטית</div>
       <div class="flex gap2 mb3">
         <button class="btn btn-primary btn-sm" onclick="openCamera('table')">📷 צלם טבלה</button>
-        <button class="btn btn-secondary
- onclick="closeModal('scanTable')">ביטול</button>
+        <button class="btn btn-secondary" onclick="closeModal('scanTable')">ביטול</button>
       </div>
     </div>
   </div>
@@ -1987,7 +1987,11 @@ function onClientChange() {
   const eqs = DB.equipment.filter(e=>String(e.clientId)===String(cId));
   eqSel.innerHTML = '<option value="">בחר מתקן...</option>' + eqs.map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)} – ${esc(e.location||'')}</option>`).join('');
   // Populate contact
-  if(cl) { if(ge('i-contact'))ge('i-contact').value=cl.contact||''; if(ge('i-phone'))ge('i-phone').value=cl.phone||''; }
+  if(cl) {
+    if(ge('i-contact')) ge('i-contact').value = cl.contact||'';
+    if(ge('i-phone'))   ge('i-phone').value   = cl.phone||'';
+    if(ge('i-owner-email') && cl.email) ge('i-owner-email').value = cl.email;
+  }
 }
 
 function onEquipChange() {
@@ -3069,76 +3073,157 @@ async function submitReport(doSend) {
 
 async function generateAndUploadPDF(inspId) {
   toast('מייצר תסקיר PDF...', 'info');
-  var insp = DB.inspections.find(function(i){return String(i.id)===String(inspId);});
-  if(!insp){toast('תסקיר לא נמצא','error');return null;}
-  var eq = DB.equipment.find(function(e){return String(e.id)===String(insp.equipment_id||insp.equipId);})||{};
-  var cl = DB.clients.find(function(c){return String(c.id)===String(insp.client_id||insp.clientId);})||{};
-  var inspNum = insp.inspection_num||insp.num||'';
+  
+  var insp = DB.inspections.find(function(i){ return String(i.id) === String(inspId); });
+  if(!insp) { toast('תסקיר לא נמצא', 'error'); return null; }
+  
+  var eq = DB.equipment.find(function(e){ return String(e.id) === String(insp.equipment_id || insp.equipId); }) || {};
+  var cl = DB.clients.find(function(c){ return String(c.id) === String(insp.client_id || insp.clientId); }) || {};
+  var defs = DB.defects.filter(function(d){ return String(d.inspId || d.inspection_id) === String(inspId); });
+  
+  var inspNum = insp.inspection_num || insp.num || '';
+  
   var sigCanvas = document.getElementById('sig-canvas');
   var sigImageHtml = '';
-  if(sigCanvas) {
+  if(sigCanvas && !isCanvasBlank(sigCanvas)) {
     var sigData = sigCanvas.toDataURL('image/png');
-    sigImageHtml = '<img src="'+sigData+'" style="max-height:80px;display:block;margin:10px auto;" />';
+    sigImageHtml = '<img src="' + sigData + '" style="max-height:60px; display:block; margin:0 auto;" />';
   }
+
+  var defectsHtml = '';
+  if(defs.length > 0) {
+    var defRows = defs.map(function(d, idx) {
+      var sev = d.severity === 'critical' ? '🔴 קריטי' : (d.severity === 'medium' ? '🟡 בינוני' : '🟢 קל');
+      return '<tr>' +
+             '<td style="padding:8px; border:1px solid #dde3ef;">' + (idx+1) + '</td>' +
+             '<td style="padding:8px; border:1px solid #dde3ef; font-weight:bold;">' + esc(d.text) + '</td>' +
+             '<td style="padding:8px; border:1px solid #dde3ef;">' + sev + '</td>' +
+             '<td style="padding:8px; border:1px solid #dde3ef;">' + esc(d.required_action || d.action || '—') + '</td>' +
+             '<td style="padding:8px; border:1px solid #dde3ef;">' + fmt(d.deadline) + '</td>' +
+             '</tr>';
+    }).join('');
+    defectsHtml = 
+      '<div style="margin-bottom: 25px;">' +
+        '<h4 style="background: #fff1f2; color: #991b1b; padding: 8px 15px; margin: 0; border: 1px solid #fecaca; border-radius: 8px 8px 0 0;">ליקויים ופעולות לתיקון (' + defs.length + ')</h4>' +
+        '<table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #fecaca;">' +
+          '<tr style="background: #fef2f2;">' +
+            '<th style="padding:8px; border:1px solid #fecaca; text-align:right; width:5%;">#</th>' +
+            '<th style="padding:8px; border:1px solid #fecaca; text-align:right; width:35%;">תיאור הליקוי</th>' +
+            '<th style="padding:8px; border:1px solid #fecaca; text-align:right; width:15%;">חומרה</th>' +
+            '<th style="padding:8px; border:1px solid #fecaca; text-align:right; width:25%;">פעולה נדרשת</th>' +
+            '<th style="padding:8px; border:1px solid #fecaca; text-align:right; width:20%;">דד-ליין</th>' +
+          '</tr>' +
+          defRows +
+        '</table>' +
+      '</div>';
+  }
+
+  var resultColor = insp.result==='approved' ? '#059669' : insp.result==='rejected' ? '#dc2626' : '#d97706';
+  var resultText  = insp.result==='approved' ? '✅ המתקן נבדק ואושר לשימוש' : insp.result==='rejected' ? '🚫 המתקן נפסל לשימוש!' : '⚠️ אושר לשימוש בתנאים מגבילים';
+
   var htmlContent =
-    '<div style="padding:40px;font-family:Heebo,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">'+
-    '<div style="border-bottom:3px solid #1a56db;padding-bottom:10px;margin-bottom:20px;display:flex;justify-content:space-between;">'+
-    '<div><h1 style="margin:0;color:#1a56db;">תסקיר בטיחות הנדסי</h1>'+
-    '<h3 style="margin:5px 0 0 0;color:#6b7280;">מספר: '+inspNum+'</h3></div>'+
-    '<div style="text-align:left;"><h2 style="margin:0;">InspectPro</h2>'+
-    '<p style="margin:0;font-size:12px;color:#6b7280;">בוצע ע"י: '+(insp.inspector_name||insp.inspector||'—')+'</p></div>'+
-    '</div>'+
-    '<div style="display:flex;gap:40px;margin-bottom:30px;">'+
-    '<div style="flex:1"><h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">פרטי הלקוח</h4>'+
-    '<p><strong>שם החברה:</strong> '+(cl.name||'—')+'</p>'+
-    '<p><strong>כתובת:</strong> '+(cl.address||'—')+'</p>'+
-    '<p><strong>איש קשר:</strong> '+(cl.contact_name||cl.contact||'—')+'</p></div>'+
-    '<div style="flex:1"><h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">פרטי המתקן</h4>'+
-    '<p><strong>סוג מתקן:</strong> '+(eq.type||'—')+'</p>'+
-    '<p><strong>יצרן ודגם:</strong> '+(eq.brand||'')+' '+(eq.model||'')+'</p>'+
-    '<p><strong>מספר סידורי:</strong> <span dir="ltr">'+(eq.serial_number||eq.serial||'—')+'</span></p></div>'+
-    '</div>'+
-    '<h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">תוצאות הבדיקה</h4>'+
-    '<p><strong>תאריך בדיקה:</strong> '+(insp.inspection_date||insp.date||'—')+'</p>'+
-    '<p><strong>סטטוס:</strong> <span style="font-weight:bold;color:'+(insp.result==='approved'?'green':insp.result==='rejected'?'red':'orange')+'">'+(insp.result==='approved'?'אושר לשימוש':insp.result==='rejected'?'לא אושר':'אושר בתנאי')+'</span></p>'+
-    '<p><strong>תוקף עד:</strong> '+(insp.next_inspection_date||insp.nextDate||'—')+'</p>'+
-    '<div style="margin-top:30px;"><h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">ממצאים והערות</h4>'+
-    '<p style="font-size:13px;white-space:pre-wrap;">'+(insp.findings||'לא נרשמו הערות מיוחדות.')+'</p></div>'+
-    '<div style="margin-top:50px;text-align:center;">'+
-    '<p>___________________________</p><p><strong>חתימת הבודק</strong></p>'+
-    sigImageHtml+
-    '<p style="font-size:11px;color:#6b7280;margin-top:10px;">הופק דיגיטלית באמצעות InspectPro</p></div></div>';
+    '<div style="padding:40px;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a56db;padding-bottom:15px;margin-bottom:25px;">' +
+      '<div><h1 style="margin:0;color:#1e3a8a;font-size:26px;">תסקיר בטיחות הנדסי</h1>' +
+      '<h3 style="margin:5px 0 0 0;color:#64748b;font-size:16px;">מספר תסקיר: ' + inspNum + '</h3></div>' +
+      '<div style="text-align:left;background:#f8fafc;padding:10px 20px;border-radius:8px;border:1px solid #e2e8f0;">' +
+      '<h2 style="margin:0;color:#1a56db;font-size:20px;">InspectPro</h2>' +
+      '<div style="font-size:12px;color:#475569;margin-top:4px;">תאריך הפקה: ' + new Date().toLocaleDateString("he-IL") + '</div></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:20px;margin-bottom:25px;">' +
+      '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;overflow:hidden;">' +
+        '<div style="background:#f1f5f9;padding:8px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;">🏢 פרטי הלקוח</div>' +
+        '<div style="padding:12px 15px;font-size:13px;line-height:1.6;">' +
+          '<div><strong>שם חברה:</strong> ' + esc(cl.name||'—') + '</div>' +
+          '<div><strong>כתובת:</strong> ' + esc(cl.address||'—') + '</div>' +
+          '<div><strong>איש קשר:</strong> ' + esc(cl.contact_name||cl.contact||'—') + '</div>' +
+          '<div><strong>טלפון:</strong> <span dir="ltr">' + esc(cl.phone||'—') + '</span></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;overflow:hidden;">' +
+        '<div style="background:#f1f5f9;padding:8px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;">⚙️ פרטי המתקן</div>' +
+        '<div style="padding:12px 15px;font-size:13px;line-height:1.6;">' +
+          '<div><strong>סוג מתקן:</strong> ' + typeLabel(eq.type) + '</div>' +
+          '<div><strong>יצרן ודגם:</strong> ' + esc(eq.brand||'') + ' ' + esc(eq.model||'') + '</div>' +
+          '<div><strong>מ.מ:</strong> <span dir="ltr">' + esc(eq.serial_number||eq.serial||'—') + '</span></div>' +
+          '<div><strong>מיקום:</strong> ' + esc(eq.location||'—') + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="border:1px solid #dde3ef;border-radius:8px;margin-bottom:25px;overflow:hidden;">' +
+      '<div style="background:#f1f5f9;padding:8px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;">📊 תוצאות הבדיקה</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+        '<tr>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;background:#fdfdfd;"><strong>תאריך בדיקה:</strong></td>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;">' + fmt(insp.inspection_date||insp.date) + '</td>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;background:#fdfdfd;"><strong>בדיקה הבאה:</strong></td>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;width:25%;font-weight:bold;">' + fmt(insp.next_inspection_date||insp.nextDate) + '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;background:#fdfdfd;"><strong>לחץ/עומס מאושר:</strong></td>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;" dir="ltr">' + esc(insp.mwp||eq.mwp||'—') + '</td>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;background:#fdfdfd;"><strong>סוג בדיקה:</strong></td>' +
+          '<td style="padding:10px 15px;border-bottom:1px solid #dde3ef;">' + inspTypeLabel(insp.inspection_type||insp.type) + '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="padding:12px 15px;border-left:1px solid #dde3ef;background:#fdfdfd;font-size:14px;"><strong>סטטוס סופי:</strong></td>' +
+          '<td colspan="3" style="padding:12px 15px;font-size:15px;font-weight:bold;color:' + resultColor + ';">' + resultText + '</td>' +
+        '</tr>' +
+      '</table>' +
+    '</div>' +
+    '<div style="margin-bottom:25px;">' +
+      '<h4 style="border-bottom:2px solid #e2e8f0;padding-bottom:5px;color:#1e3a8a;margin-bottom:10px;">📝 ממצאים והערות</h4>' +
+      '<div style="background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #dde3ef;font-size:13px;white-space:pre-wrap;line-height:1.5;">' + esc(insp.findings||'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.') + '</div>' +
+    '</div>' +
+    defectsHtml +
+    '<div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">' +
+      '<div style="text-align:center;font-size:11px;color:#94a3b8;">' +
+        '<p style="margin:2px 0;">מסמך זה הופק אלקטרונית</p>' +
+        '<p style="margin:2px 0;">מערכת InspectPro</p>' +
+      '</div>' +
+      '<div style="text-align:center;width:220px;">' +
+        sigImageHtml +
+        '<div style="border-top:1px solid #333;padding-top:5px;margin-top:5px;">' +
+          '<strong>' + esc(insp.inspector_name||insp.inspector||'בודק מוסמך') + '</strong><br>' +
+          '<span style="font-size:12px;color:#666;">חתימת הבודק</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+
   var tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlContent;
-  tempDiv.style.position = 'absolute';
-  tempDiv.style.left = '-9999px';
-  document.body.appendChild(tempDiv);
+
   var opt = {
-    margin:10, filename:inspNum+'.pdf',
-    image:{type:'jpeg',quality:0.98},
-    html2canvas:{scale:2,useCORS:true,willReadFrequently:true},
-    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    margin: 10,
+    filename: inspNum + '.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
+
   try {
     var pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
-    document.body.removeChild(tempDiv);
     var blobUrl = URL.createObjectURL(pdfBlob);
     window.open(blobUrl, '_blank');
-    // פתיחת PDF מיד בלשונית חדשה
-    var blobUrl = URL.createObjectURL(pdfBlob);
-    window.open(blobUrl, '_blank');
-    var fileName = _user.id+'/'+inspNum+'_'+Date.now()+'.pdf';
+    var fileName = _user.id + '/' + inspNum + '_' + Date.now() + '.pdf';
     var sb = getSB();
     var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
     if(r.error) throw r.error;
-    toast('PDF נשמר בענן ✅','success');
+    toast('PDF מעוצב הופק ונשמר! 📄', 'success');
     return fileName;
   } catch(err) {
-    if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
-    toast('שגיאה ביצירת PDF','error');
+    toast('שגיאה ביצירת PDF', 'error');
     console.error(err);
     return null;
   }
+}
+
+function isCanvasBlank(canvas) {
+  var blank = document.createElement('canvas');
+  blank.width = canvas.width;
+  blank.height = canvas.height;
+  return canvas.toDataURL() === blank.toDataURL();
 }
 
 
