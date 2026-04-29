@@ -287,6 +287,7 @@ button{cursor:pointer;}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -2709,8 +2710,8 @@ function openReportView(id) {
     '</div></div>'+
     '<div class="modal-footer">'+
     '<button class="btn btn-secondary" id="rvcl">סגור</button>'+
-    '<button class="btn btn-success" id="rvsd">📧 שלח תסקיר</button>'+
-    (eq?'<button class="btn btn-primary" id="rvnw">+ תסקיר חדש לאותו מתקן</button>':'')+
+    '<button class="btn btn-primary" onclick="generateAndUploadPDF(\''+i.id+'\')">📄 הפק PDF לענן</button>'+
+    (eq?'<button class="btn btn-secondary" id="rvnw">+ חדש למתקן</button>':'')+
     '</div></div>';
   var close=function(){modal.remove();};
   modal.addEventListener('click',function(e){if(e.target===modal)close();});
@@ -2988,6 +2989,66 @@ async function submitReport(doSend) {
   }
   navTo('reports');
 }
+
+async function generateAndUploadPDF(inspId) {
+  toast('מייצר תסקיר PDF...', 'info');
+  var insp = DB.inspections.find(function(i){return i.id===inspId;});
+  if(!insp){toast('תסקיר לא נמצא','error');return null;}
+  var eq = DB.equipment.find(function(e){return e.id===(insp.equipment_id||insp.equipId);})||{};
+  var cl = DB.clients.find(function(c){return c.id===(insp.client_id||insp.clientId);})||{};
+  var inspNum = insp.inspection_num||insp.num||'';
+  var htmlContent = '<div style="padding:40px;font-family:Heebo,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">'+
+    '<div style="border-bottom:3px solid #1a56db;padding-bottom:10px;margin-bottom:20px;">'+
+    '<h1 style="margin:0;color:#1a56db;">תסקיר בטיחות הנדסי</h1>'+
+    '<h3 style="margin:5px 0 0 0;color:#6b7280;">מספר: '+inspNum+'</h3></div>'+
+    '<div style="margin-bottom:20px;">'+
+    '<h4 style="border-bottom:1px solid #dde3ef;">פרטי הלקוח</h4>'+
+    '<p><strong>שם:</strong> '+(cl.name||'—')+'</p>'+
+    '<p><strong>כתובת:</strong> '+(cl.address||'—')+'</p>'+
+    '</div>'+
+    '<div style="margin-bottom:20px;">'+
+    '<h4 style="border-bottom:1px solid #dde3ef;">פרטי המתקן</h4>'+
+    '<p><strong>סוג:</strong> '+(eq.type||'—')+'</p>'+
+    '<p><strong>יצרן ודגם:</strong> '+(eq.brand||'')+' '+(eq.model||'')+'</p>'+
+    '<p><strong>מ.מ:</strong> '+(eq.serial_number||eq.serial||'—')+'</p>'+
+    '</div>'+
+    '<h4 style="border-bottom:1px solid #dde3ef;">תוצאות</h4>'+
+    '<p><strong>תאריך:</strong> '+(insp.inspection_date||insp.date||'—')+'</p>'+
+    '<p><strong>סטטוס:</strong> '+(insp.result==='approved'?'אושר':insp.result==='rejected'?'לא אושר':'אושר בתנאי')+'</p>'+
+    '<p><strong>תוקף עד:</strong> '+(insp.next_inspection_date||insp.nextDate||'—')+'</p>'+
+    '<div style="margin-top:20px;"><h4 style="border-bottom:1px solid #dde3ef;">ממצאים</h4>'+
+    '<p style="font-size:13px;">'+(insp.findings||'לא נרשמו הערות.')+'</p></div>'+
+    '<div style="margin-top:40px;text-align:center;"><p>___________________________</p>'+
+    '<p><strong>חתימת הבודק</strong></p>'+
+    '<p style="font-size:11px;color:#6b7280;">הופק ע"י InspectPro</p></div></div>';
+  var tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlContent;
+  tempDiv.style.position = 'absolute';
+  tempDiv.style.left = '-9999px';
+  document.body.appendChild(tempDiv);
+  var opt = {
+    margin:10, filename:inspNum+'.pdf',
+    image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+  };
+  try {
+    var pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
+    document.body.removeChild(tempDiv);
+    var fileName = _user.id+'/'+inspNum+'_'+Date.now()+'.pdf';
+    var sb = getSB();
+    var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
+    if(r.error) throw r.error;
+    toast('PDF נשמר בענן ✅','success');
+    return fileName;
+  } catch(err) {
+    if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+    toast('שגיאה ביצירת PDF','error');
+    console.error(err);
+    return null;
+  }
+}
+
 
 // ════════════════════════════════════════════════════════
 // ADD EQUIPMENT MODAL
