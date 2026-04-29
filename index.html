@@ -1220,6 +1220,14 @@ var _sb = null;
 var _user = null;
 var _isAdmin = false;
 
+function genUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function getSB() {
   if (!_sb) {
     try {
@@ -1952,7 +1960,7 @@ function showInspTab(idx) {
 }
 
 function onClientChange() {
-  const cId = parseInt(ge('i-client').value);
+  const cId = ge('i-client').value;
   const cl = DB.clients.find(c=>c.id===cId);
   // Populate sites
   const sites = cl?.sites||[];
@@ -1973,7 +1981,7 @@ function onClientChange() {
 }
 
 function onEquipChange() {
-  const eId = parseInt(ge('i-equip').value);
+  const eId = ge('i-equip').value;
   const e = DB.equipment.find(x=>x.id===eId);
   if(!e) { const c=ge('prev-insp-card'); if(c)c.style.display='none'; return; }
   if(ge('i-type')) ge('i-type').value = e.type||'';
@@ -2613,9 +2621,14 @@ function filterDefects(q) {
   renderDefects(results);
 }
 
-function closeDefect(id) {
-  const d=DB.defects.find(x=>x.id===id);
-  if(d){d.status='closed';saveDB();renderDefects();}
+async function closeDefect(id) {
+  var sb = getSB();
+  if(!sb) return;
+  var r = await sb.from('defects').update({status:'closed'}).eq('id', id);
+  if(r.error){toast('שגיאה בסגירת ליקוי','error');return;}
+  await loadFromSupabase(_user.id);
+  renderDefects();
+  toast('ליקוי נסגר ✅','success');
 }
 
 // ════════════════════════════════════════════════════════
@@ -2791,17 +2804,20 @@ function toggleDefectLive(){
 
 function startVideoRec(){toast('הקלטת וידאו תתמך בגרסה הבאה','info');}
 
-function markSent(id){
-  const i=DB.inspections.find(x=>x.id===id);if(!i)return;
-  const ownerEmail=i.ownerEmail||'';
-  const supEmail=i.supEmail||'';
+async function markSent(id){
+  var i=DB.inspections.find(function(x){return x.id===id;});if(!i)return;
+  var ownerEmail=i.ownerEmail||i.owner_email||'';
+  var supEmail=i.supEmail||i.supervisor_email||'';
+  var sb=getSB();
+  if(sb) await sb.from('inspections').update({is_sent:true}).eq('id',id);
   if(ownerEmail||supEmail){
-    const recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
-    const subject=encodeURIComponent('תסקיר בדיקה '+i.num);
-    const body=encodeURIComponent('תסקיר '+i.num+'\nתוצאה: '+i.result+'\nבדיקה הבאה: '+i.nextDate+'\n\nבברכה,\n'+(i.inspector||''));
+    var recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
+    var subject=encodeURIComponent('תסקיר בדיקה '+i.num);
+    var body=encodeURIComponent('תסקיר '+i.num+' תוצאה: '+i.result+' בברכה, '+(i.inspector||i.inspector_name||''));
     window.open('mailto:'+recipients+'?subject='+subject+'&body='+body,'_blank');
   }
-  i.sent=true;saveDB();renderReports();
+  await loadFromSupabase(_user.id);
+  renderReports();
   toast(ownerEmail||supEmail?'תסקיר נשלח 📧':'תסקיר סומן כנשלח','success');
 }
 
@@ -2809,22 +2825,22 @@ function markSent(id){
 // BILLING
 // ════════════════════════════════════════════════════════
 function renderBilling() {
-  const paid=DB.invoices.filter(i=>i.status==='paid').reduce((a,i)=>a+i.amount,0);
-  const pend=DB.invoices.filter(i=>i.status==='pending').reduce((a,i)=>a+i.amount,0);
+  var invoices = (DB.inspections||[]).filter(function(i){return i.amount>0;});
+  var total = invoices.reduce(function(a,i){return a+(i.amount||0);},0);
   ge('billing-stats').innerHTML=[
-    ['שולם','₪'+paid.toLocaleString(),'green'],
-    ['ממתין','₪'+pend.toLocaleString(),'orange'],
-    ['סה"כ','₪'+(paid+pend).toLocaleString(),'blue'],
-  ].map(([l,v,c])=>`<div class="stat"><div class="stat-label">${l}</div><div class="stat-value" style="color:var(--${c})">${v}</div></div>`).join('');
-  ge('billing-tbl').innerHTML=DB.invoices.map(i=>`<tr>
-    <td>${esc(cln(i.clientId))}</td>
-    <td style="font-size:12px">${fmt(i.date)}</td>
-    <td style="font-weight:700;font-family:'IBM Plex Mono',monospace;color:${i.status==='paid'?'var(--green)':'var(--orange)'}">₪${i.amount.toLocaleString()}</td>
-    <td>${i.status==='paid'?pill('שולם','green'):pill('ממתין','orange')}</td>
-    <td>${i.status==='pending'?`<button class="btn btn-success btn-xs" onclick="markPaid(${i.id})">✓ שולם</button>`:'—'}</td>
-  </tr>`).join('');
+    ['סה"כ הכנסות','₪'+total.toLocaleString(),'green'],
+    ['תסקירים',''+invoices.length,'blue'],
+  ].map(function(x){return '<div class="stat"><div class="stat-label">'+x[0]+'</div><div class="stat-value" style="color:var(--'+x[2]+')">'+x[1]+'</div></div>';}).join('');
+  ge('billing-tbl').innerHTML=invoices.map(function(i){
+    var cl = DB.clients.find(function(c){return c.id===i.clientId||c.id===i.client_id;})||{};
+    return '<tr><td>'+esc(cl.name||'—')+'</td>'+
+      '<td style="font-size:12px">'+fmt(i.date||i.inspection_date)+'</td>'+
+      '<td style="font-weight:700;font-family:IBM Plex Mono,monospace;color:var(--green)">₪'+(i.amount||0).toLocaleString()+'</td>'+
+      '<td>'+pill('שולם','green')+'</td>'+
+      '<td>—</td></tr>';
+  }).join('');
 }
-function markPaid(id){const i=DB.invoices.find(x=>x.id===id);if(i){i.status='paid';i.paidDate=new Date().toISOString().split('T')[0];saveDB();renderBilling();}}
+function markPaid(id){}
 
 // ════════════════════════════════════════════════════════
 // CALENDAR
@@ -2919,37 +2935,52 @@ function setResult(r, btn) {
   else { const inp=document.createElement('input'); inp.type='hidden'; inp.id='i-result'; inp.value=r; document.body.appendChild(inp); }
 }
 
-function submitReport(doSend) {
-  const eId=parseInt((ge('i-equip')||{}).value);
-  const cId=parseInt((ge('i-client')||{}).value);
+async function submitReport(doSend) {
+  var eId = (ge('i-equip')||{}).value || null;
+  var cId = (ge('i-client')||{}).value || null;
   if(!cId){toast('בחר לקוח','error');return;}
-  const num=(ge('i-num')||{}).value||'IR-'+new Date().getFullYear()+'-'+String(DB.nextId.insp).padStart(3,'0');
-  const result=(ge('i-result')||{}).value||'approved';
-  const ownerEmail=(ge('i-owner-email')||{}).value||'';
-  const supEmail=(ge('i-supervisor-email')||{}).value||'';
-  const sendOnSave=doSend||(ge('i-send-on-save')&&ge('i-send-on-save').checked);
-  const insp={
-    id:nid('insp'), equipId:eId||null, clientId:cId, num,
-    date:(ge('i-date')||{}).value||new Date().toISOString().split('T')[0],
-    type:(ge('i-insp-type')||{}).value||'periodic-14',
-    result, inspector:(ge('i-inspector')||{}).value||DB.settings.name||'',
-    mwp:(ge('i-approved-press')||{}).value||'',
-    nextDate:(ge('i-valid-until')||{}).value||'',
-    findings:(ge('i-findings')||{}).value||'',
-    score:parseInt((ge('i-score')||{}).value)||80,
-    defects:_currentDefects.length, sent:!!sendOnSave,
-    amount:parseInt((ge('i-amount')||{}).value)||0,
-    ownerEmail, supEmail,
+  if(!eId){toast('בחר מתקן','error');return;}
+  var sb = getSB();
+  var inspId = genUUID();
+  var num = (ge('i-num')||{}).value || 'IR-'+new Date().getFullYear()+'-'+Math.floor(Math.random()*900+100);
+  var result = ge('i-result') ? ge('i-result').value : 'approved';
+  var ownerEmail = (ge('i-owner-email')||{}).value||'';
+  var supEmail = (ge('i-supervisor-email')||{}).value||'';
+  var sendOnSave = doSend || (ge('i-send-on-save') && ge('i-send-on-save').checked);
+  var nextDate = (ge('i-valid-until')||{}).value||'';
+  var inspData = {
+    id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
+    inspection_num: num,
+    inspection_date: (ge('i-date')||{}).value || new Date().toISOString().split('T')[0],
+    inspection_type: (ge('i-insp-type')||{}).value||'periodic-14',
+    result: result,
+    inspector_name: (ge('i-inspector')||{}).value || (DB.settings&&DB.settings.name)||'',
+    score: parseInt((ge('i-score')||{}).value)||80,
+    findings: (ge('i-findings')||{}).value||'',
+    checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
+    amount: parseInt((ge('i-amount')||{}).value)||0,
+    owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
   };
-  DB.inspections.push(insp);
-  if(eId&&insp.nextDate){const e=DB.equipment.find(x=>x.id===eId);if(e)e.nextInsp=insp.nextDate;}
-  if(insp.amount) DB.invoices.push({id:nid('invoice'),clientId:cId,inspId:insp.id,amount:insp.amount,status:'pending',date:insp.date,paidDate:''});
-  saveDB();
-  _currentDefects=[];
+  var r = await sb.from('inspections').insert(inspData);
+  if(r.error){toast('שגיאה בשמירת תסקיר: '+r.error.message,'error');return;}
+  if(nextDate) await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id',eId);
+  if(_currentDefects.length > 0) {
+    var defectsData = _currentDefects.map(function(d){
+      return { id:genUUID(), user_id:_user.id, client_id:cId, equipment_id:eId,
+               inspection_id:inspId, text:d.text, severity:d.severity, status:'open',
+               deadline:d.deadline||null, required_action:d.action||'',
+               doc_required:d.docRequired||false, repair_doc:d.repairDoc||'' };
+    });
+    var dr = await sb.from('defects').insert(defectsData);
+    if(dr.error) console.warn('שגיאה בשמירת ליקויים:', dr.error.message);
+  }
+  _currentDefects = [];
+  if(DB.currentInsp) DB.currentInsp.checklist = {};
+  await loadFromSupabase(_user.id);
   if(sendOnSave&&(ownerEmail||supEmail)){
-    const recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
-    const subject=encodeURIComponent('תסקיר בדיקה '+num);
-    const body=encodeURIComponent('תסקיר '+num+' מצורף.\nתוצאה: '+result+'\nבדיקה הבאה: '+insp.nextDate+'\n\nבברכה,\n'+insp.inspector);
+    var recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
+    var subject=encodeURIComponent('תסקיר בדיקה '+num);
+    var body=encodeURIComponent('תסקיר '+num+' מצורף. תוצאה: '+result+' בדיקה הבאה: '+nextDate+' בברכה, '+inspData.inspector_name);
     window.open('mailto:'+recipients+'?subject='+subject+'&body='+body,'_blank');
     toast('תסקיר '+num+' נשמר ונשלח! 📧','success');
   } else {
@@ -2974,25 +3005,31 @@ function populateEqClientSelect() {
   };
 }
 
-function saveEquipment() {
-  const cId=parseInt(ge('eq-client').value)||null;
+async function saveEquipment() {
+  var cId = ge('eq-client').value || null;
   if(!cId){toast('בחר לקוח','error');return;}
-  const brand=ge('eq-brand').value.trim();
-  const model=ge('eq-model').value.trim();
+  var brand = ge('eq-brand').value.trim();
+  var model = ge('eq-model').value.trim();
   if(!brand||!model){toast('הכנס יצרן ודגם','error');return;}
-  const eq={
-    id:nid('equip'), clientId:cId, site:(ge('eq-site')||{}).value||'',
-    type:(ge('eq-type')||{}).value||'boiler', brand, model,
-    serial:ge('eq-serial').value, year:parseInt(ge('eq-year').value)||0,
-    mwp:ge('eq-pressure').value, mwp_unit:'bar',
-    testPress:ge('eq-test-press').value, hydro:ge('eq-hydro').value,
-    location:ge('eq-location').value,
-    lastInsp:ge('eq-last').value, nextInsp:ge('eq-next').value,
+  var sb = getSB();
+  var eqData = {
+    id: genUUID(), user_id: _user.id, client_id: cId,
+    site_id: (ge('eq-site')||{}).value || null,
+    type: (ge('eq-type')||{}).value||'boiler', brand: brand, model: model,
+    serial_number: ge('eq-serial').value||'',
+    manufacture_year: parseInt(ge('eq-year').value)||null,
+    mwp: ge('eq-pressure').value||'', mwp_unit: 'bar',
+    test_pressure: ge('eq-test-press').value||'',
+    hydro_pressure: ge('eq-hydro').value||'',
+    location: ge('eq-location').value||'',
+    last_inspection_date: ge('eq-last').value||null,
+    next_inspection_date: ge('eq-next').value||null
   };
-  DB.equipment.push(eq);
-  saveDB();
+  var r = await sb.from('equipment').insert(eqData);
+  if(r.error){toast('שגיאה: '+r.error.message,'error');return;}
+  await loadFromSupabase(_user.id);
   closeModal('addEquip');
-  toast(`${brand} ${model} נוסף ✅`,'success');
+  toast(brand+' '+model+' נוסף ✅','success');
   renderEquipment();
 }
 
