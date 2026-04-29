@@ -1202,7 +1202,8 @@ button{cursor:pointer;}
       <div class="alert alert-info mb3">📷 צלם את טבלת העומסים – AI יחלץ את הנתונים אוטומטית</div>
       <div class="flex gap2 mb3">
         <button class="btn btn-primary btn-sm" onclick="openCamera('table')">📷 צלם טבלה</button>
-        <button class="btn btn-secondary" onclick="closeModal('scanTable')">ביטול</button>
+        <button class="btn btn-secondary
+ onclick="closeModal('scanTable')">ביטול</button>
       </div>
     </div>
   </div>
@@ -1986,11 +1987,7 @@ function onClientChange() {
   const eqs = DB.equipment.filter(e=>String(e.clientId)===String(cId));
   eqSel.innerHTML = '<option value="">בחר מתקן...</option>' + eqs.map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)} – ${esc(e.location||'')}</option>`).join('');
   // Populate contact
-  if(cl) {
-    if(ge('i-contact')) ge('i-contact').value = cl.contact||'';
-    if(ge('i-phone'))   ge('i-phone').value   = cl.phone||'';
-    if(ge('i-owner-email') && cl.email) ge('i-owner-email').value = cl.email;
-  }
+  if(cl) { if(ge('i-contact'))ge('i-contact').value=cl.contact||''; if(ge('i-phone'))ge('i-phone').value=cl.phone||''; }
 }
 
 function onEquipChange() {
