@@ -1334,33 +1334,42 @@ async function loadFromSupabase(userId) {
   var sb = getSB();
   if (!sb) { initAppAfterLogin(); return; }
   try {
-    if (_isAdmin) {
-      var res = await sb.from('inspectpro_data').select('*');
-      if (res.error) throw res.error;
-      if (res.data && res.data.length) {
-        var merged = seed();
-        merged.clients=[]; merged.equipment=[]; merged.inspections=[]; merged.defects=[]; merged.invoices=[];
-        res.data.forEach(function(row) {
-          var d = row.data_json;
-          if (d.clients) merged.clients = merged.clients.concat(d.clients);
-          if (d.equipment) merged.equipment = merged.equipment.concat(d.equipment);
-          if (d.inspections) merged.inspections = merged.inspections.concat(d.inspections);
-          if (d.defects) merged.defects = merged.defects.concat(d.defects);
-          if (d.invoices) merged.invoices = merged.invoices.concat(d.invoices);
-        });
-        DB = merged;
-      } else { DB = seed(); }
-    } else {
-      var res = await sb.from('inspectpro_data').select('*').eq('user_id', userId).maybeSingle();
-      if (res.error) throw res.error;
-      if (res.data && res.data.data_json) {
-        DB = JSON.parse(JSON.stringify(res.data.data_json));
-      } else {
-        DB = seed();
-        DB.settings.email = _user.email;
-        if (_user.user_metadata && _user.user_metadata.full_name) DB.settings.name = _user.user_metadata.full_name;
-      }
-    }
+    var results = await Promise.all([
+      sb.from('clients').select('*'),
+      sb.from('sites').select('*'),
+      sb.from('equipment').select('*'),
+      sb.from('inspections').select('*'),
+      sb.from('defects').select('*')
+    ]);
+    var clientsRes=results[0], sitesRes=results[1], eqRes=results[2], inspRes=results[3], defRes=results[4];
+    if (clientsRes.error) throw clientsRes.error;
+    if (eqRes.error) throw eqRes.error;
+
+    DB.clients = (clientsRes.data || []).map(function(c) {
+      var clientSites = (sitesRes.data || [])
+        .filter(function(s){ return s.client_id === c.id; })
+        .map(function(s){ return s.site_name; });
+      return { id:c.id, name:c.name, num:c.client_num, contact:c.contact_name,
+               phone:c.phone, email:c.email, address:c.address, sites:clientSites };
+    });
+    DB.equipment = (eqRes.data || []).map(function(e) {
+      return { id:e.id, clientId:e.client_id, site:e.site_id, type:e.type,
+               brand:e.brand, model:e.model, serial:e.serial_number, year:e.manufacture_year,
+               mwp:e.mwp, mwp_unit:e.mwp_unit, testPress:e.test_pressure, hydro:e.hydro_pressure,
+               location:e.location, lastInsp:e.last_inspection_date, nextInsp:e.next_inspection_date };
+    });
+    DB.inspections = (inspRes.data || []).map(function(i) {
+      return { id:i.id, clientId:i.client_id, equipId:i.equipment_id, num:i.inspection_num,
+               date:i.inspection_date, type:i.inspection_type, result:i.result,
+               inspector:i.inspector_name, score:i.score, findings:i.findings,
+               amount:i.amount, ownerEmail:i.owner_email, supEmail:i.supervisor_email,
+               sent:i.is_sent, nextDate:i.next_inspection_date };
+    });
+    DB.defects = (defRes.data || []).map(function(d) {
+      return { id:d.id, clientId:d.client_id, equipId:d.equipment_id, inspId:d.inspection_id,
+               text:d.text, severity:d.severity, status:d.status, deadline:d.deadline,
+               action:d.required_action, docRequired:d.doc_required, repairDoc:d.repair_doc };
+    });
   } catch(e) {
     console.error('loadFromSupabase error:', e);
     DB = seed();
@@ -3026,35 +3035,33 @@ function editClient(id) {
   openModal('addClient');
 }
 
-function saveClient() {
-  const name=ge('cl-name').value.trim();
-  if(!name){toast('הכנס שם לקוח','error');return;}
-  const sites=[];
-  ge('cl-sites-list').querySelectorAll('input[type="text"]').forEach(inp=>{if(inp.value.trim())sites.push(inp.value.trim());});
-  const fields={
-    name,
-    num:ge('cl-num').value||'',
-    contact:ge('cl-contact').value||'',
-    phone:ge('cl-phone').value||'',
-    email:ge('cl-email').value||'',
-    address:ge('cl-address').value||'',
-    sites,
+async function saveClient() {
+  var name = ge('cl-name').value.trim();
+  if(!name){ toast('הכנס שם לקוח','error'); return; }
+  var sb = getSB();
+  var clientId = _editingClientId || genUUID();
+  var clientData = {
+    id: clientId, user_id: _user.id, name: name,
+    client_num: ge('cl-num').value||'', contact_name: ge('cl-contact').value||'',
+    phone: ge('cl-phone').value||'', email: ge('cl-email').value||'',
+    address: ge('cl-address').value||''
   };
-  if(_editingClientId) {
-    // Update existing
-    const idx=DB.clients.findIndex(c=>c.id===_editingClientId);
-    if(idx>=0) Object.assign(DB.clients[idx], fields);
-    saveDB();
-    closeModal('addClient');
-    toast(name+' עודכן ✅','success');
-  } else {
-    // Add new
-    DB.clients.push({id:nid('client'), ...fields});
-    saveDB();
-    closeModal('addClient');
-    toast(name+' נוסף ✅','success');
+  var r = await sb.from('clients').upsert(clientData);
+  if (r.error) { toast('שגיאה: '+r.error.message,'error'); return; }
+  var sites = [];
+  ge('cl-sites-list').querySelectorAll('input[type="text"]').forEach(function(inp){
+    if(inp.value.trim()) sites.push(inp.value.trim());
+  });
+  if (_editingClientId) await sb.from('sites').delete().eq('client_id', clientId);
+  if (sites.length > 0) {
+    await sb.from('sites').insert(sites.map(function(s){
+      return { client_id: clientId, user_id: _user.id, site_name: s };
+    }));
   }
-  _editingClientId=null;
+  await loadFromSupabase(_user.id);
+  closeModal('addClient');
+  toast(name+' נשמר ✅','success');
+  _editingClientId = null;
   renderClients();
   populateInspSelects();
   populateEqClientSelect();
