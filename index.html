@@ -1898,7 +1898,7 @@ function filterEquipment(q) {
 }
 
 function startInspFor(eqId) {
-  const e = DB.equipment.find(x=>x.id===eqId);
+  const e = DB.equipment.find(x=>String(x.id)===String(eqId));
   if(!e) return;
   navTo('inspection');
   setTimeout(()=>{
@@ -1915,13 +1915,13 @@ function startInspFor(eqId) {
 function renderClients(data) {
   const list = data || DB.clients;
   ge('clients-grid').innerHTML = list.map(c=>{
-    const eqs = DB.equipment.filter(e=>e.clientId===c.id).length;
-    const ins = DB.inspections.filter(i=>i.clientId===c.id).length;
+    const eqs = DB.equipment.filter(e=>String(e.clientId)===String(c.id)).length;
+    const ins = DB.inspections.filter(i=>String(i.clientId)===String(c.id)).length;
     const sites = (c.sites||[]);
-    return `<div class="card" style="cursor:pointer" onclick="editClient(${c.id})">
+    return `<div class="card" style="cursor:pointer" onclick="editClient('${c.id}')">
       <div class="card-header"><span>🏢</span><h3>${esc(c.name)}</h3>
-        <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();editClient(${c.id})">✏️ ערוך</button>
-        <button class="btn btn-primary btn-xs" onclick="event.stopPropagation();startNewInspForClient(${c.id})">+ תסקיר</button>
+        <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();editClient('${c.id}')">✏️ ערוך</button>
+        <button class="btn btn-primary btn-xs" onclick="event.stopPropagation();startNewInspForClient('${c.id}')">+ תסקיר</button>
       </div>
       <div class="card-body" style="font-size:13px">
         <div class="mb2">👤 ${esc(c.contact||'—')}</div>
@@ -1930,11 +1930,20 @@ function renderClients(data) {
         ${sites.length ? `<div class="mb3"><strong style="font-size:11px;color:var(--text3)">אתרים:</strong> ${sites.map(s=>`<span class="pill pill-blue" style="margin:1px">${esc(s)}</span>`).join('')}</div>` : ''}
         <div class="sep"></div>
         <div class="flex gap2">
-          ${pill(eqs+' מתקנים','blue')} ${pill(ins+' תסקירים','gray')}
+          <div onclick="event.stopPropagation();filterAndNavTo('equipment','${esc(c.name)}')" style="cursor:pointer">${pill(eqs+' מתקנים','blue')}</div>
+          <div onclick="event.stopPropagation();filterAndNavTo('reports','${esc(c.name)}')" style="cursor:pointer">${pill(ins+' תסקירים','gray')}</div>
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+function filterAndNavTo(page, query) {
+  navTo(page);
+  setTimeout(function() {
+    if(page==='equipment'){var sb=ge('eq-search');if(sb){sb.value=query;filterEquipment(query);}}
+    else if(page==='reports'){var sb=ge('rep-search');if(sb){sb.value=query;filterReports(query);}}
+  }, 50);
 }
 
 function filterClients(q) {
@@ -1975,7 +1984,7 @@ function onClientChange() {
   }
   // Populate equipment
   const eqSel = ge('i-equip');
-  const eqs = DB.equipment.filter(e=>e.clientId===cId);
+  const eqs = DB.equipment.filter(e=>String(e.clientId)===String(cId));
   eqSel.innerHTML = '<option value="">בחר מתקן...</option>' + eqs.map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)} – ${esc(e.location||'')}</option>`).join('');
   // Populate contact
   if(cl) { if(ge('i-contact'))ge('i-contact').value=cl.contact||''; if(ge('i-phone'))ge('i-phone').value=cl.phone||''; }
@@ -1983,7 +1992,7 @@ function onClientChange() {
 
 function onEquipChange() {
   const eId = ge('i-equip').value;
-  const e = DB.equipment.find(x=>x.id===eId);
+  const e = DB.equipment.find(x=>String(x.id)===String(eId));
   if(!e) { const c=ge('prev-insp-card'); if(c)c.style.display='none'; return; }
   if(ge('i-type')) ge('i-type').value = e.type||'';
   if(ge('i-brand')) ge('i-brand').value = e.brand||'';
@@ -2557,14 +2566,14 @@ function saveDefect() {
   if(!text) { toast('הכנס תיאור ליקוי','error'); return; }
   const docRequired = document.querySelector('input[name="d-doc-required"]:checked')?.value === 'yes';
   const def = {
-    id: nid('defect'),
+    id: genUUID(),
     text, severity: (ge('d-severity')||{}).value||'medium',
     deadline: (ge('d-deadline')||{}).value||'',
     action: (ge('d-action')||{}).value||'',
     docRequired, repairDoc: (ge('d-repair-doc')||{}).value||'',
     status:'open', createdAt: new Date().toISOString().split('T')[0],
-    clientId: parseInt((ge('i-client')||{}).value)||null,
-    equipId: parseInt((ge('i-equip')||{}).value)||null,
+    clientId: (ge('i-client')||{}).value||null,
+    equipId: (ge('i-equip')||{}).value||null,
     inspId: null,
   };
   _currentDefects.push(def);
@@ -3058,7 +3067,7 @@ function populateEqClientSelect() {
   if(!sel) return;
   sel.innerHTML='<option value="">בחר לקוח...</option>'+DB.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   sel.onchange = function() {
-    const cl=DB.clients.find(c=>c.id===parseInt(this.value));
+    const cl=DB.clients.find(c=>String(c.id)===String(this.value));
     const sites=cl?.sites||[];
     const wrap=ge('eq-site-wrap');const siteSel=ge('eq-site');
     if(sites.length){wrap.style.display='block';siteSel.innerHTML=sites.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');}
@@ -3114,7 +3123,7 @@ function removeSite(id) { ge('site-row-'+id)?.remove(); _siteRows=_siteRows.filt
 let _editingClientId = null;
 
 function editClient(id) {
-  const c = DB.clients.find(x=>x.id===id);
+  const c = DB.clients.find(x=>String(x.id)===String(id));
   if(!c) return;
   _editingClientId = id;
   // Fill form
