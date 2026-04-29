@@ -3517,40 +3517,35 @@ document.addEventListener('click', function(e) {
 // Init handled by onLoggedIn after auth
 window.addEventListener('DOMContentLoaded', function() {
   var sb = getSB();
+
+  function showLoginScreen() {
+    document.getElementById('login-wrap').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
+
   async function checkSession() {
     try {
-      if (!sb) { document.getElementById('login-wrap').style.display='flex'; return; }
-      // זיהוי חזרה מ-Google redirect
-      if (window.location.hash.includes('access_token=')) {
-        setTimeout(async function() {
-          var r = await sb.auth.getSession();
-          if (r.data && r.data.session) {
-            window.location.href = window.location.pathname;
-          }
-        }, 500);
-        return;
-      }
+      if (!sb) { showLoginScreen(); return; }
       var r = await sb.auth.getSession();
       if (r.data && r.data.session) {
-        document.getElementById('app').style.display='flex';
-        document.getElementById('login-wrap').style.display='none';
         onLoggedIn(r.data.session.user);
       } else {
-        document.getElementById('login-wrap').style.display='flex';
-        document.getElementById('app').style.display='none';
+        showLoginScreen();
       }
     } catch(e) {
       console.error('Init error:', e);
-      document.getElementById('login-wrap').style.display='flex';
+      showLoginScreen();
     }
     sb.auth.onAuthStateChange(function(event, session) {
       if (event === 'SIGNED_IN' && session) {
-        document.getElementById('app').style.display='flex';
-        document.getElementById('login-wrap').style.display='none';
+        if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
         onLoggedIn(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        showLoginScreen();
       }
     });
   }
+
   checkSession();
   checkMobile();
   if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
