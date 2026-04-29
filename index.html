@@ -2043,22 +2043,81 @@ function onEquipChange() {
 }
 
 // Auto-calculate next inspection date
+// תדירויות בדיקה לפי פקודת הבטיחות בעבודה תש"ל-1970 ותקנות הנלוות
+const INSP_FREQ_MONTHS = {
+  // מתקני לחץ
+  'boiler': 14, 'boiler-cold': 14, 'boiler-hot': 14,
+  'boiler-hydro': 60, // בדיקה הידרוסטטית כל 5 שנים
+  'steam-collector': 14, 'air-collector': 14,
+  'autoclave': 14, 'pressure-vessel': 14,
+  // מתקני הרמה - כל 14 חודשים לפי תקנה
+  'forklift': 14, 'crane-bridge': 14, 'crane-jib': 14,
+  'crane-mobile': 14, 'aerial-platform': 6, // במות הרמה - 6 חודשים
+  'elevator': 12, // מעליות - 12 חודשים לפי ת"י 2481
+  'lift-platform': 14, 'vehicle-hoist': 14,
+  'crane-tower': 6, // עגורני צריח - 6 חודשים לפי תקנות עגורני-צריח תשכ"ז
+  // אביזרי הרמה - 6 חודשים לפי פקודת הבטיחות
+  'chain': 6, 'hook': 6, 'sling-textile': 6, 'sling-wire': 6, 'spreader-beam': 6,
+  // סוגי בדיקה
+  'periodic-14': 14, 'periodic-12': 12, 'periodic-6': 6,
+  'boiler-cold-t': 14, 'boiler-hot-t': 14, 'boiler-hydro-t': 60,
+};
+
+function getFreqMonths(eqType, inspType) {
+  if(inspType && INSP_FREQ_MONTHS[inspType]) return INSP_FREQ_MONTHS[inspType];
+  if(eqType && INSP_FREQ_MONTHS[eqType]) return INSP_FREQ_MONTHS[eqType];
+  return 14; // ברירת מחדל
+}
+
 function calcNextInspDate() {
-  const dateEl = ge('i-date'); const nextEl = ge('i-next-date');
+  var dateEl = ge('i-date'); var nextEl = ge('i-next-date');
   if(!dateEl||!nextEl||!dateEl.value) return;
-  const typeVal = (ge('i-insp-type')||{}).value||'periodic-14';
-  let months = 14;
-  if(typeVal==='periodic-12') months=12;
-  else if(typeVal==='periodic-6') months=6;
-  else if(typeVal==='boiler-cold') months=14;
-  else if(typeVal==='boiler-hot') months=14;
-  else if(typeVal==='boiler-hydro') months=60; // every 5 years typically
-  const d = new Date(dateEl.value);
+
+  var typeVal = (ge('i-insp-type')||{}).value || '';
+  var eqType  = (ge('i-type')||{}).value || '';
+
+  // ── טבלת תדירויות לפי חוק ישראלי ──────────────────────────────
+  // מקור: פקודת הבטיחות בעבודה תש"ל-1970 + תקנות הבטיחות
+  var FREQ = {
+    // מתקני לחץ
+    'boiler'          : 14,  // דוד קיטור – 14 חודש (IS 60)
+    'boiler-hot'      : 14,  // בדיקה חמה – 14 חודש
+    'boiler-hydro'    : 60,  // הידרוסטטי – כל 5 שנים
+    'steam-collector' : 26,  // קולט קיטור – 26 חודש
+    'air-collector'   : 26,  // קולט אוויר/קומפרסור – 26 חודש
+    'autoclave'       : 14,  // אוטוקלב/סיר לחץ – 14 חודש
+    'pressure-vessel' : 26,  // מיכל לחץ כללי – 26 חודש
+    // מתקני הרמה
+    'forklift'        : 14,  // מלגזה – 14 חודש
+    'crane-bridge'    : 14,  // עגורן גשר – 14 חודש
+    'crane-jib'       : 14,  // מנוף זרוע – 14 חודש
+    'crane-tower'     : 14,  // מנוף צריח – 14 חודש
+    'crane-mobile'    : 14,  // מנוף נייד – 14 חודש
+    'aerial-platform' :  6,  // במת הרמה/נאקל – 6 חודש
+    'elevator'        :  6,  // מעלית – 6 חודש
+    'lift-platform'   :  6,  // שולחן הרמה – 6 חודש
+    'vehicle-hoist'   :  6,  // ליפט רכב – 6 חודש
+    // אביזרי הרמה (חוק: כל 6 חודשים)
+    'chain'           :  6,
+    'hook'            :  6,
+    'sling-textile'   :  6,
+    'sling-wire'      :  6,
+    'spreader-beam'   :  6,
+  };
+
+  var months = FREQ[eqType] || 14; // ברירת מחדל: 14 חודש
+
+  // דריסה אם המשתמש בחר סוג בדיקה ספציפי
+  if(typeVal === 'periodic-12') months = 12;
+  else if(typeVal === 'periodic-6') months = 6;
+  else if(typeVal === 'boiler-hydro') months = 60;
+
+  var d = new Date(dateEl.value);
   if(isNaN(d.getTime())) return;
-  d.setMonth(d.getMonth()+months);
+  d.setMonth(d.getMonth() + months);
   nextEl.value = d.toISOString().split('T')[0];
-  nextEl.style.background='#d1fae5';
-  setTimeout(function(){ if(nextEl) nextEl.style.background='var(--s2)'; }, 700);
+  nextEl.style.background = '#d1fae5';
+  setTimeout(function(){ if(nextEl) nextEl.style.background = 'var(--s2)'; }, 700);
 }
 
 // Auto-gen inspection number
@@ -2600,7 +2659,7 @@ function renderCurrentDefects() {
           <div style="font-size:11px;color:var(--text3);margin-top:2px">פעולה: ${esc(d.action||'—')} · דד-ליין: ${fmt(d.deadline)}</div>
         </div>
         ${sevPill(d.severity)}
-        <button class="btn btn-danger btn-xs" onclick="_currentDefects.splice(${i},1);DB.defects=DB.defects.filter(x=>x.id!==${d.id});saveDB();renderCurrentDefects()">✕</button>
+        <button class="btn btn-danger btn-xs" onclick="_currentDefects.splice(${i},1); renderCurrentDefects();">✕</button>
       </div>
       ${d.docRequired?`<div class="defect-repair-needed">📋 נדרש תיעוד תיקון${d.repairDoc?' – '+esc(d.repairDoc.substring(0,60)):''}</div>`:''}
     </div>`).join('');
@@ -2611,13 +2670,13 @@ function renderDefects(data) {
   const tbody = ge('defects-tbl');
   if(!tbody) return;
   tbody.innerHTML = list.map(d=>`<tr>
-    <td><div style="font-weight:600">${esc(d.text.substring(0,60))}</div><div style="font-size:11px;color:var(--text3)">${esc(d.action||'')}</div></td>
-    <td>${esc(cln(d.clientId))}</td>
+    <td><div style="font-weight:600">${esc((d.text||'').substring(0,60))}</div><div style="font-size:11px;color:var(--text3)">${esc(d.required_action||d.action||'')}</div></td>
+    <td>${esc(cln(d.clientId||d.client_id))}</td>
     <td>${sevPill(d.severity)}</td>
     <td style="font-size:12px">${fmt(d.deadline)}</td>
-    <td>${d.docRequired?'<span style="color:var(--orange)">📋 כן</span>':'—'}</td>
+    <td>${(d.docRequired||d.doc_required)?'<span style="color:var(--orange)">📋 כן</span>':'—'}</td>
     <td>${statusPill(d.status)}</td>
-    <td><button class="btn btn-success btn-xs" onclick="closeDefect(${d.id})">✓ סגור</button></td>
+    <td><button class="btn btn-success btn-xs" onclick="closeDefect('${d.id}')">✓ סגור</button></td>
   </tr>`).join('');
 }
 
@@ -2671,14 +2730,16 @@ function filterReports(q) {
 
 
 function openReportView(id) {
-  var i=DB.inspections.find(function(x){return String(x.id)===String(id);}); if(!i) return;
-  var eq=DB.equipment.find(function(x){return x.id===i.equipId;});
-  var cl=DB.clients.find(function(x){return x.id===i.clientId;});
-  var defs=DB.defects.filter(function(d){return d.inspId===id;});
+  var inspId = String(id);
+  var i = DB.inspections.find(function(x){ return String(x.id)===inspId; });
+  if(!i){ toast('שגיאה: התסקיר לא נמצא','error'); return; }
+  var eq = DB.equipment.find(function(x){ return String(x.id)===String(i.equipId||i.equipment_id); });
+  var cl = DB.clients.find(function(x){ return String(x.id)===String(i.clientId||i.client_id); });
+  var defs = DB.defects.filter(function(d){ return String(d.inspId||d.inspection_id)===inspId; });
   var eqH='';
   if(eq){eqH='<div class="mb2"><strong>מתקן:</strong> '+esc(eq.brand)+' '+esc(eq.model)+'</div>'+
-    '<div class="mb2"><strong>מ.מ:</strong> '+esc(eq.serial||'?')+'</div>'+
-    '<div class="mb2"><strong>שנת ייצור:</strong> '+(eq.year||'?')+'</div>'+
+    '<div class="mb2"><strong>מ.מ:</strong> '+esc(eq.serial_number||eq.serial||'?')+'</div>'+
+    '<div class="mb2"><strong>שנת ייצור:</strong> '+(eq.manufacture_year||eq.year||'?')+'</div>'+
     '<div><strong>מיקום:</strong> '+esc(eq.location||'?')+'</div>';}
   var fH='';
   if(i.findings){fH='<div class="card mb3"><div class="card-header"><span>📝</span><h3>ממצאים</h3></div><div class="card-body" style="font-size:13px;white-space:pre-wrap">'+esc(i.findings)+'</div></div>';}
@@ -2688,24 +2749,28 @@ function openReportView(id) {
       return '<div class="defect-item '+d.severity+'" style="margin:8px 0">'+
         '<div class="defect-header"><div style="flex:1">'+
         '<div style="font-size:13px;font-weight:700">'+esc(d.text)+'</div>'+
-        '<div style="font-size:11px;color:var(--text3)">פעולה: '+esc(d.action||'?')+'</div>'+
+        '<div style="font-size:11px;color:var(--text3)">פעולה: '+esc(d.required_action||d.action||'?')+'</div>'+
         '</div>'+sevPill(d.severity)+' '+statusPill(d.status)+'</div></div>';
     }).join('');
     dH='<div class="card"><div class="card-header"><span>⚠️</span><h3>ליקויים ('+defs.length+')</h3></div><div style="padding:0 16px">'+di+'</div></div>';
   }
+  var numDisplay=esc(i.inspection_num||i.num||'?');
+  var dateDisplay=fmt(i.inspection_date||i.date);
+  var nextDateDisplay=fmt(i.next_inspection_date||i.nextDate);
+  var inspectorDisplay=esc(i.inspector_name||i.inspector||'?');
   var modal=document.createElement('div');
   modal.className='overlay open';
   modal.innerHTML=
     '<div class="modal" style="max-width:760px">'+
-    '<div class="modal-header"><span>📄</span><h3>תסקיר '+esc(i.num)+'</h3>'+
+    '<div class="modal-header"><span>📄</span><h3>תסקיר '+numDisplay+'</h3>'+
     '<button class="modal-close" id="rvx">✕</button></div>'+
     '<div class="modal-body"><div class="g2 mb3">'+
     '<div class="card" style="margin:0"><div class="card-header"><span>📋</span><h3>פרטי הבדיקה</h3></div>'+
     '<div class="card-body" style="font-size:13px">'+
-    '<div class="mb2"><strong>מספר:</strong> <code>'+esc(i.num)+'</code></div>'+
-    '<div class="mb2"><strong>תאריך:</strong> '+fmt(i.date)+'</div>'+
-    '<div class="mb2"><strong>בודק:</strong> '+esc(i.inspector||'?')+'</div>'+
-    '<div class="mb2"><strong>בדיקה הבאה:</strong> '+fmt(i.nextDate)+'</div>'+
+    '<div class="mb2"><strong>מספר:</strong> <code>'+numDisplay+'</code></div>'+
+    '<div class="mb2"><strong>תאריך:</strong> '+dateDisplay+'</div>'+
+    '<div class="mb2"><strong>בודק:</strong> '+inspectorDisplay+'</div>'+
+    '<div class="mb2"><strong>בדיקה הבאה:</strong> '+nextDateDisplay+'</div>'+
     '<div class="mb2"><strong>תוצאה:</strong> '+resPill(i.result)+'</div>'+
     '<div class="mb2"><strong>ציון:</strong> '+(i.score||'?')+'%</div>'+
     '</div></div>'+
@@ -2719,23 +2784,14 @@ function openReportView(id) {
     '</div></div>'+
     '<div class="modal-footer">'+
     '<button class="btn btn-secondary" id="rvcl">סגור</button>'+
-    '<button class="btn btn-primary" onclick="generateAndUploadPDF(\''+i.id+'\')">📄 הפק PDF לענן</button>'+
+    '<button class="btn btn-primary" onclick="generateAndUploadPDF(\''+inspId+'\')">📄 הפק PDF</button>'+
+    '<button class="btn btn-success" onclick="markSent(\''+inspId+'\')">📧 שלח למייל</button>'+
     (eq?'<button class="btn btn-secondary" id="rvnw">+ חדש למתקן</button>':'')+
     '</div></div>';
   var close=function(){modal.remove();};
   modal.addEventListener('click',function(e){if(e.target===modal)close();});
   modal.querySelector('#rvx').addEventListener('click',close);
   modal.querySelector('#rvcl').addEventListener('click',close);
-  var sdb=modal.querySelector('#rvsd');
-  if(sdb)sdb.addEventListener('click',function(){
-    var owners=[i.ownerEmail,i.supEmail].filter(Boolean).join(',');
-    if(!owners){toast('אין כתובת מייל שמורה לתסקיר זה','warn');return;}
-    var subj=encodeURIComponent('תסקיר בדיקה '+i.num);
-    var body=encodeURIComponent('תסקיר '+i.num+'\nתוצאה: '+i.result+'\n\nבברכה,\n'+(i.inspector||''));
-    window.open('mailto:'+owners+'?subject='+subj+'&body='+body,'_blank');
-    if(!i.sent){i.sent=true;saveDB();}
-    toast('פותח לקוח מייל 📧','success');
-  });
   if(eq){var nb=modal.querySelector('#rvnw');if(nb)nb.addEventListener('click',function(){close();startInspFor(eq.id);});}
   document.body.appendChild(modal);
 }
@@ -2815,20 +2871,32 @@ function toggleDefectLive(){
 function startVideoRec(){toast('הקלטת וידאו תתמך בגרסה הבאה','info');}
 
 async function markSent(id){
-  var i=DB.inspections.find(function(x){return x.id===id;});if(!i)return;
+  var i=DB.inspections.find(function(x){return String(x.id)===String(id);});if(!i)return;
   var ownerEmail=i.ownerEmail||i.owner_email||'';
   var supEmail=i.supEmail||i.supervisor_email||'';
+  var recipients=[ownerEmail,supEmail].filter(Boolean);
+  if(!recipients.length){toast('אין כתובת מייל לתסקיר זה','warn');return;}
   var sb=getSB();
-  if(sb) await sb.from('inspections').update({is_sent:true}).eq('id',id);
-  if(ownerEmail||supEmail){
-    var recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
-    var subject=encodeURIComponent('תסקיר בדיקה '+i.num);
-    var body=encodeURIComponent('תסקיר '+i.num+' תוצאה: '+i.result+' בברכה, '+(i.inspector||i.inspector_name||''));
-    window.open('mailto:'+recipients+'?subject='+subject+'&body='+body,'_blank');
+  if(!sb)return;
+  toast('מייצר PDF ושולח...','info');
+  var filePath = await generateAndUploadPDF(id);
+  try {
+    var r = await sb.functions.invoke('swift-service', {
+      body: {
+        to: recipients,
+        subject: 'תסקיר בדיקה הנדסי - '+(i.inspection_num||i.num||''),
+        body: 'שלום רב, מצ"ב תסקיר בדיקה מספר '+(i.inspection_num||i.num||'')+'. תוצאה: '+i.result+'. בברכה, '+(i.inspector_name||i.inspector||'InspectPro'),
+      }
+    });
+    if(r.error) throw r.error;
+    await sb.from('inspections').update({is_sent:true}).eq('id',id);
+    await loadFromSupabase(_user.id);
+    renderReports();
+    toast('תסקיר נשלח בהצלחה! 📧','success');
+  } catch(err) {
+    console.error('שגיאה:', err);
+    toast('שגיאה בשליחה — בדוק קונסול','error');
   }
-  await loadFromSupabase(_user.id);
-  renderReports();
-  toast(ownerEmail||supEmail?'תסקיר נשלח 📧':'תסקיר סומן כנשלח','success');
 }
 
 // ════════════════════════════════════════════════════════
@@ -3001,35 +3069,45 @@ async function submitReport(doSend) {
 
 async function generateAndUploadPDF(inspId) {
   toast('מייצר תסקיר PDF...', 'info');
-  var insp = DB.inspections.find(function(i){return i.id===inspId;});
+  var insp = DB.inspections.find(function(i){return String(i.id)===String(inspId);});
   if(!insp){toast('תסקיר לא נמצא','error');return null;}
-  var eq = DB.equipment.find(function(e){return e.id===(insp.equipment_id||insp.equipId);})||{};
-  var cl = DB.clients.find(function(c){return c.id===(insp.client_id||insp.clientId);})||{};
+  var eq = DB.equipment.find(function(e){return String(e.id)===String(insp.equipment_id||insp.equipId);})||{};
+  var cl = DB.clients.find(function(c){return String(c.id)===String(insp.client_id||insp.clientId);})||{};
   var inspNum = insp.inspection_num||insp.num||'';
-  var htmlContent = '<div style="padding:40px;font-family:Heebo,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">'+
-    '<div style="border-bottom:3px solid #1a56db;padding-bottom:10px;margin-bottom:20px;">'+
-    '<h1 style="margin:0;color:#1a56db;">תסקיר בטיחות הנדסי</h1>'+
+  var sigCanvas = document.getElementById('sig-canvas');
+  var sigImageHtml = '';
+  if(sigCanvas) {
+    var sigData = sigCanvas.toDataURL('image/png');
+    sigImageHtml = '<img src="'+sigData+'" style="max-height:80px;display:block;margin:10px auto;" />';
+  }
+  var htmlContent =
+    '<div style="padding:40px;font-family:Heebo,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">'+
+    '<div style="border-bottom:3px solid #1a56db;padding-bottom:10px;margin-bottom:20px;display:flex;justify-content:space-between;">'+
+    '<div><h1 style="margin:0;color:#1a56db;">תסקיר בטיחות הנדסי</h1>'+
     '<h3 style="margin:5px 0 0 0;color:#6b7280;">מספר: '+inspNum+'</h3></div>'+
-    '<div style="margin-bottom:20px;">'+
-    '<h4 style="border-bottom:1px solid #dde3ef;">פרטי הלקוח</h4>'+
-    '<p><strong>שם:</strong> '+(cl.name||'—')+'</p>'+
+    '<div style="text-align:left;"><h2 style="margin:0;">InspectPro</h2>'+
+    '<p style="margin:0;font-size:12px;color:#6b7280;">בוצע ע"י: '+(insp.inspector_name||insp.inspector||'—')+'</p></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:40px;margin-bottom:30px;">'+
+    '<div style="flex:1"><h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">פרטי הלקוח</h4>'+
+    '<p><strong>שם החברה:</strong> '+(cl.name||'—')+'</p>'+
     '<p><strong>כתובת:</strong> '+(cl.address||'—')+'</p>'+
-    '</div>'+
-    '<div style="margin-bottom:20px;">'+
-    '<h4 style="border-bottom:1px solid #dde3ef;">פרטי המתקן</h4>'+
-    '<p><strong>סוג:</strong> '+(eq.type||'—')+'</p>'+
+    '<p><strong>איש קשר:</strong> '+(cl.contact_name||cl.contact||'—')+'</p></div>'+
+    '<div style="flex:1"><h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">פרטי המתקן</h4>'+
+    '<p><strong>סוג מתקן:</strong> '+(eq.type||'—')+'</p>'+
     '<p><strong>יצרן ודגם:</strong> '+(eq.brand||'')+' '+(eq.model||'')+'</p>'+
-    '<p><strong>מ.מ:</strong> '+(eq.serial_number||eq.serial||'—')+'</p>'+
+    '<p><strong>מספר סידורי:</strong> <span dir="ltr">'+(eq.serial_number||eq.serial||'—')+'</span></p></div>'+
     '</div>'+
-    '<h4 style="border-bottom:1px solid #dde3ef;">תוצאות</h4>'+
-    '<p><strong>תאריך:</strong> '+(insp.inspection_date||insp.date||'—')+'</p>'+
-    '<p><strong>סטטוס:</strong> '+(insp.result==='approved'?'אושר':insp.result==='rejected'?'לא אושר':'אושר בתנאי')+'</p>'+
+    '<h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">תוצאות הבדיקה</h4>'+
+    '<p><strong>תאריך בדיקה:</strong> '+(insp.inspection_date||insp.date||'—')+'</p>'+
+    '<p><strong>סטטוס:</strong> <span style="font-weight:bold;color:'+(insp.result==='approved'?'green':insp.result==='rejected'?'red':'orange')+'">'+(insp.result==='approved'?'אושר לשימוש':insp.result==='rejected'?'לא אושר':'אושר בתנאי')+'</span></p>'+
     '<p><strong>תוקף עד:</strong> '+(insp.next_inspection_date||insp.nextDate||'—')+'</p>'+
-    '<div style="margin-top:20px;"><h4 style="border-bottom:1px solid #dde3ef;">ממצאים</h4>'+
-    '<p style="font-size:13px;">'+(insp.findings||'לא נרשמו הערות.')+'</p></div>'+
-    '<div style="margin-top:40px;text-align:center;"><p>___________________________</p>'+
-    '<p><strong>חתימת הבודק</strong></p>'+
-    '<p style="font-size:11px;color:#6b7280;">הופק ע"י InspectPro</p></div></div>';
+    '<div style="margin-top:30px;"><h4 style="border-bottom:1px solid #dde3ef;padding-bottom:5px;">ממצאים והערות</h4>'+
+    '<p style="font-size:13px;white-space:pre-wrap;">'+(insp.findings||'לא נרשמו הערות מיוחדות.')+'</p></div>'+
+    '<div style="margin-top:50px;text-align:center;">'+
+    '<p>___________________________</p><p><strong>חתימת הבודק</strong></p>'+
+    sigImageHtml+
+    '<p style="font-size:11px;color:#6b7280;margin-top:10px;">הופק דיגיטלית באמצעות InspectPro</p></div></div>';
   var tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlContent;
   tempDiv.style.position = 'absolute';
@@ -3044,6 +3122,11 @@ async function generateAndUploadPDF(inspId) {
   try {
     var pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
     document.body.removeChild(tempDiv);
+    var blobUrl = URL.createObjectURL(pdfBlob);
+    window.open(blobUrl, '_blank');
+    // פתיחת PDF מיד בלשונית חדשה
+    var blobUrl = URL.createObjectURL(pdfBlob);
+    window.open(blobUrl, '_blank');
     var fileName = _user.id+'/'+inspNum+'_'+Date.now()+'.pdf';
     var sb = getSB();
     var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
