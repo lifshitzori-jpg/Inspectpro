@@ -365,7 +365,7 @@ button{cursor:pointer;}
 <!-- MAIN -->
 <div id="main">
   <div id="topbar">
-    <button class="btn btn-icon" id="mob-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mob-open')" style="display:none">☰</button>
+    <button class="btn btn-icon" id="mob-menu-btn" onclick="toggleSidebar()" style="display:none">☰</button>
     <div>
       <div id="pg-title">לוח בקרה</div>
       <div id="pg-sub">סקירה כללית</div>
@@ -373,7 +373,13 @@ button{cursor:pointer;}
     <div class="topbar-right">
       <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV</button>
       <button class="btn btn-primary btn-sm" onclick="navTo('inspection')">+ תסקיר</button>
-      <button class="btn btn-sm" style="background:#dc2626;color:#fff;border:none" onclick="lbSignout()">🚪</button>
+      <div style="position:relative">
+        <button id="avatar-btn" onclick="toggleProfileMenu()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#7c3aed);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700" title="פרופיל">👤</button>
+        <div id="profile-menu" style="display:none;position:absolute;left:0;top:44px;background:#fff;border:1px solid #dde3ef;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;z-index:9999;overflow:hidden">
+          <div style="padding:10px 14px;border-bottom:1px solid #dde3ef;font-size:12px;color:#6b7280" id="profile-email">טוען...</div>
+          <button onclick="lbSignout()" style="width:100%;padding:10px 14px;background:none;border:none;text-align:right;font-size:13px;font-weight:700;color:#dc2626;cursor:pointer;display:flex;align-items:center;gap:8px">🚪 התנתק</button>
+        </div>
+      </div>
     </div>
   </div>
   <div id="content">
@@ -1563,9 +1569,14 @@ function navTo(p) {
 }
 
 function toggleSidebar() {
-  ge('sidebar').classList.toggle('collapsed');
-  const btn = ge('sidebar').querySelector('.sb-toggle');
-  if(btn) btn.textContent = ge('sidebar').classList.contains('collapsed') ? '▶' : '◀';
+  var sb = ge('sidebar');
+  if (window.innerWidth <= 800) {
+    sb.classList.toggle('mob-open');
+  } else {
+    sb.classList.toggle('collapsed');
+    var btn = sb.querySelector('.sb-toggle');
+    if(btn) btn.textContent = sb.classList.contains('collapsed') ? '▶' : '◀';
+  }
 }
 
 
@@ -3477,6 +3488,28 @@ function checkMobile(){
   if(btn)btn.style.display=m?'flex':'none';
 }
 window.addEventListener('resize',checkMobile);
+
+function toggleProfileMenu() {
+  var m = ge('profile-menu');
+  if (!m) return;
+  var isOpen = m.style.display === 'block';
+  m.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen && _user) {
+    var em = ge('profile-email');
+    if (em) em.textContent = _user.email;
+    // Set avatar initials
+    var btn = ge('avatar-btn');
+    if (btn && _user.email) btn.textContent = _user.email[0].toUpperCase();
+  }
+}
+// Close menu on outside click
+document.addEventListener('click', function(e) {
+  var btn = ge('avatar-btn');
+  var menu = ge('profile-menu');
+  if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
 
 // ════════════════════════════════════════════════════════
 // INIT
