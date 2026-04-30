@@ -1439,33 +1439,7 @@ function initAppAfterLogin() {
 window.addEventListener('load', function() {
   // Enter key on password
   var p = ge('lb-pass');
-  if (p) p.addEventListener('keydown', function(e) { if (e.key === 'Enter') lbLogin(); });
-
-  // Try Supabase session
-  try {
-    var sb = getSB();
-    if (sb) {
-      sb.auth.getSession().then(function(res) {
-        if (res.data && res.data.session) {
-          onLoggedIn(res.data.session.user);
-        } else {
-          // No session - show login screen
-          showLoginScreen();
-        }
-      }).catch(function() { showLoginScreen(); });
-      
-      sb.auth.onAuthStateChange(function(event, session) {
-        if (event === 'SIGNED_IN' && session && !_user) {
-          onLoggedIn(session.user);
-        }
-      });
-    } else {
-      showLoginScreen();
-    }
-  } catch(e) {
-    console.warn('Supabase error:', e.message);
-    showLoginScreen();
-  }
+  if(p) p.addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
 });
 
 function showLoginScreen() {
@@ -2649,8 +2623,6 @@ function saveDefect() {
     inspId: null,
   };
   _currentDefects.push(def);
-  DB.defects.push(def);
-  saveDB();
   renderCurrentDefects();
   closeModal('addDefect');
   toast('ליקוי נוסף ✅','success');
@@ -2672,7 +2644,7 @@ function renderCurrentDefects() {
           <div style="font-size:11px;color:var(--text3);margin-top:2px">פעולה: ${esc(d.action||'—')} · דד-ליין: ${fmt(d.deadline)}</div>
         </div>
         ${sevPill(d.severity)}
-        <button class="btn btn-danger btn-xs" onclick="_currentDefects.splice(${i},1); renderCurrentDefects();">✕</button>
+        <button class="btn btn-danger btn-xs" onclick="var defId=_currentDefects[${i}]?.id; _currentDefects.splice(${i},1); if(defId) DB.defects=DB.defects.filter(function(x){return x.id!==defId;}); renderCurrentDefects();">✕</button>
       </div>
       ${d.docRequired?`<div class="defect-repair-needed">📋 נדרש תיעוד תיקון${d.repairDoc?' – '+esc(d.repairDoc.substring(0,60)):''}</div>`:''}
     </div>`).join('');
@@ -2830,8 +2802,8 @@ function importOneDefect(defId, btn) {
   var orig=DB.defects.find(function(x){return x.id===defId;});if(!orig)return;
   var nd=Object.assign({},orig,{id:nid('defect'),originId:defId,status:'open',
     createdAt:new Date().toISOString().split('T')[0],inspId:null,
-    clientId:parseInt((ge('i-client')||{}).value)||orig.clientId,
-    equipId:parseInt((ge('i-equip')||{}).value)||orig.equipId});
+    clientId:(ge('i-client')||{}).value||orig.clientId,
+    equipId:(ge('i-equip')||{}).value||orig.equipId});
   _currentDefects.push(nd);DB.defects.push(nd);saveDB();renderCurrentDefects();
   btn.textContent='✅';btn.disabled=true;btn.style.opacity='0.6';
   toast('ליקוי יובא','success');
@@ -3028,9 +3000,18 @@ function renderSettings() {
 }
 
 function saveSettings() {
-  let sigData = '';
+  let sigData = (DB.settings && DB.settings.signature) ? DB.settings.signature : '';
   const c = ge('settings-sig-canvas');
-  if (c && !isCanvasBlank(c)) { sigData = c.toDataURL('image/png'); }
+  if (c && !isCanvasBlank(c)) {
+    var newSig = c.toDataURL('image/png');
+    if (newSig !== sigData) {
+      var tmp=document.createElement('canvas');
+      var ratio=Math.min(1, 400/Math.max(c.width,1));
+      tmp.width=Math.round(c.width*ratio); tmp.height=Math.round(c.height*ratio);
+      tmp.getContext('2d').drawImage(c, 0, 0, tmp.width, tmp.height);
+      sigData = tmp.toDataURL('image/jpeg', 0.85);
+    }
+  }
   DB.settings = {
     name: ge('s-name').value||'',
     lic: ge('s-lic').value||'',
@@ -3068,6 +3049,9 @@ async function submitReport(doSend) {
   var sendOnSave = doSend || (ge('i-send-on-save') && ge('i-send-on-save').checked);
   var nextDate = (ge('i-valid-until')||{}).value||'';
   var findingsText = (ge('i-findings')||{}).value||'';
+  var photosRaw = [];
+  document.querySelectorAll('.media-thumb img').forEach(function(img){ photosRaw.push(img.src); });
+  document.querySelectorAll('.media-thumb video').forEach(function(vid){ if(vid.src) photosRaw.push(vid.src); });
 
   var inspData = {
     id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
@@ -3079,6 +3063,7 @@ async function submitReport(doSend) {
     score: parseInt((ge('i-score')||{}).value)||80,
     findings: findingsText,
     checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
+    photos: photosRaw,
     amount: parseInt((ge('i-amount')||{}).value)||0,
     owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
   };
@@ -3850,7 +3835,7 @@ function resetInspectionForm() {
   var today = new Date().toISOString().split('T')[0];
   if(ge('i-date')) ge('i-date').value = today;
   if(ge('i-valid-until')) ge('i-valid-until').value = '';
-  ['main-media-grid','critical-media-grid'].forEach(function(gid){
+  ['main-media-grid','critical-media-grid','notes-media-content','defect-media-grid','repair-media-grid'].forEach(function(gid){
     var g=ge(gid); if(g) g.querySelectorAll('.media-thumb').forEach(function(el){el.remove();});
   });
   clearSig();
