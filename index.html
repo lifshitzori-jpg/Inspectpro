@@ -3131,8 +3131,7 @@ async function generateAndUploadPDF(inspId) {
   }
 
   var findingsText = (insp.findings || '').trim();
-  var findingsHtml = findingsText ? esc(findingsText).replace(/
-/g, '<br>') : 'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.';
+  var findingsHtml = findingsText ? esc(findingsText).replace(/\n/g, '<br>') : 'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.';
 
   var defectsHtml = '';
   if(defs.length > 0) {
