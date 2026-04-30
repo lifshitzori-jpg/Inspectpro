@@ -1466,37 +1466,7 @@ function initAppAfterLogin() {
 // ════════════════════════════════════════════════
 // INIT - Check session on load
 // ════════════════════════════════════════════════
-window.addEventListener('load', function() {
-  // Enter key on password
-  var p = ge('lb-pass');
-  if (p) p.addEventListener('keydown', function(e) { if (e.key === 'Enter') lbLogin(); });
-
-  // Try Supabase session
-  try {
-    var sb = getSB();
-    if (sb) {
-      sb.auth.getSession().then(function(res) {
-        if (res.data && res.data.session) {
-          onLoggedIn(res.data.session.user);
-        } else {
-          // No session - show login screen
-          showLoginScreen();
-        }
-      }).catch(function() { showLoginScreen(); });
-      
-      sb.auth.onAuthStateChange(function(event, session) {
-        if (event === 'SIGNED_IN' && session && !_user) {
-          onLoggedIn(session.user);
-        }
-      });
-    } else {
-      showLoginScreen();
-    }
-  } catch(e) {
-    console.warn('Supabase error:', e.message);
-    showLoginScreen();
-  }
-});
+;
 
 function showLoginScreen() {
   var lw = ge('login-wrap');
@@ -3652,7 +3622,9 @@ window.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  checkSession();
+  // Enter key on password
+  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
+    checkSession();
   checkMobile();
   if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
   var today = new Date().toISOString().split('T')[0];
