@@ -1391,7 +1391,25 @@ async function loadFromSupabase(userId) {
     });
   } catch(e) {
     console.error('loadFromSupabase error:', e);
+    var savedSettings = DB.settings; // preserve settings
     DB = seed();
+    DB.settings = savedSettings;
+  }
+  // Load user settings from Supabase (signature etc.)
+  try {
+    var sb2 = getSB();
+    if(sb2 && _user) {
+      var settingsRes = await sb2.from('user_settings').select('settings_json').eq('user_id', _user.id).single();
+      if(settingsRes.data && settingsRes.data.settings_json) {
+        DB.settings = settingsRes.data.settings_json;
+      }
+    }
+  } catch(e2) {
+    // fallback to localStorage settings
+    try {
+      var lsDB = JSON.parse(localStorage.getItem(DB_KEY)||'{}');
+      if(lsDB.settings) DB.settings = lsDB.settings;
+    } catch(e3) {}
   }
   initAppAfterLogin();
 }
@@ -1417,6 +1435,14 @@ function saveDB() {
 
 function initAppAfterLogin() {
   try {
+    // Restore settings from localStorage if not loaded from Supabase yet
+    if(!DB.settings || !DB.settings.name) {
+      try {
+        var lsDB = JSON.parse(localStorage.getItem(DB_KEY)||'{}');
+        if(lsDB.settings) DB.settings = lsDB.settings;
+      } catch(e) {}
+    }
+
     // Hide login screen
     var lw = ge('login-wrap');
     if (lw) { lw.classList.remove('active'); lw.style.display = 'none'; }
@@ -1430,6 +1456,10 @@ function initAppAfterLogin() {
     if (ge('i-date')) ge('i-date').value = today;
     if (typeof calcNextInspDate === 'function') calcNextInspDate();
     if (typeof autoGenInspNum === 'function') autoGenInspNum();
+    // Set inspector name from settings
+    if(DB.settings && DB.settings.name && ge('i-inspector') && !ge('i-inspector').value) {
+      ge('i-inspector').value = DB.settings.name;
+    }
   } catch(e) { console.error('initAppAfterLogin error:', e); }
 }
 
@@ -3021,8 +3051,8 @@ function renderSettings() {
   }
 }
 
-function saveSettings() {
-  let sigData = '';
+async function saveSettings() {
+  let sigData = DB.settings.signature || '';
   const c = ge('settings-sig-canvas');
   if (c && !isCanvasBlank(c)) { sigData = c.toDataURL('image/png'); }
   DB.settings = {
@@ -3032,8 +3062,18 @@ function saveSettings() {
     email: ge('s-email').value||'',
     signature: sigData
   };
-  ge('sb-user').textContent = DB.settings.name + ' – בודק מוסמך';
-  saveDB();
+  // Save to localStorage
+  try { localStorage.setItem(DB_KEY, JSON.stringify(DB)); } catch(e) {}
+  // Save to Supabase
+  var sb = getSB();
+  if(sb && _user) {
+    await sb.from('user_settings').upsert({
+      user_id: _user.id,
+      settings_json: DB.settings,
+      updated_at: new Date().toISOString()
+    });
+  }
+  if(ge('sb-user')) ge('sb-user').textContent = DB.settings.name + ' – בודק מוסמך';
   toast('הגדרות וחתימה נשמרו ✅','success');
 }
 
