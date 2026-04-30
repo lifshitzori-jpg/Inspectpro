@@ -1973,6 +1973,16 @@ function showInspTab(idx) {
   if(tc) tc.classList.add('active');
   const tb = document.querySelectorAll('.insp-tab')[idx];
   if(tb) tb.classList.add('active');
+  // אם עוברים לטאב הסיכום – ודא שהקנבס מקבל גודל נכון
+  if(idx === 4) {
+    setTimeout(function() {
+      var c = ge('sig-canvas');
+      if(c && (c.width === 0 || c.height === 0)) {
+        c.width = c.parentElement.offsetWidth || 400;
+        c.height = 140;
+      }
+    }, 50);
+  }
 }
 
 function onClientChange() {
@@ -3049,6 +3059,7 @@ async function submitReport(doSend) {
   var cId = (ge('i-client')||{}).value || null;
   if(!cId){toast('בחר לקוח','error');return;}
   if(!eId){toast('בחר מתקן','error');return;}
+
   var sb = getSB();
   var inspId = genUUID();
   var num = (ge('i-num')||{}).value || 'IR-'+new Date().getFullYear()+'-'+Math.floor(Math.random()*900+100);
@@ -3057,6 +3068,8 @@ async function submitReport(doSend) {
   var supEmail = (ge('i-supervisor-email')||{}).value||'';
   var sendOnSave = doSend || (ge('i-send-on-save') && ge('i-send-on-save').checked);
   var nextDate = (ge('i-valid-until')||{}).value||'';
+  var findingsText = (ge('i-findings')||{}).value||'';
+
   var inspData = {
     id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
     inspection_num: num,
@@ -3065,14 +3078,19 @@ async function submitReport(doSend) {
     result: result,
     inspector_name: (ge('i-inspector')||{}).value || (DB.settings&&DB.settings.name)||'',
     score: parseInt((ge('i-score')||{}).value)||80,
-    findings: (ge('i-findings')||{}).value||'',
+    findings: findingsText,
     checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
     amount: parseInt((ge('i-amount')||{}).value)||0,
     owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
   };
+
+  // 1. שמור תסקיר
   var r = await sb.from('inspections').insert(inspData);
   if(r.error){toast('שגיאה בשמירת תסקיר: '+r.error.message,'error');return;}
+
   if(nextDate) await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id',eId);
+
+  // 2. שמור ליקויים עם ה-UUID הנכון של התסקיר
   if(_currentDefects.length > 0) {
     var defectsData = _currentDefects.map(function(d){
       return { id:genUUID(), user_id:_user.id, client_id:cId, equipment_id:eId,
@@ -3083,15 +3101,17 @@ async function submitReport(doSend) {
     var dr = await sb.from('defects').insert(defectsData);
     if(dr.error) console.warn('שגיאה בשמירת ליקויים:', dr.error.message);
   }
+
+  // 3. נקה מצב נוכחי
   _currentDefects = [];
   if(DB.currentInsp) DB.currentInsp.checklist = {};
+  if(ge('i-findings')) ge('i-findings').value = '';
+  clearSig();
+
   await loadFromSupabase(_user.id);
-  if(sendOnSave&&(ownerEmail||supEmail)){
-    var recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
-    var subject=encodeURIComponent('תסקיר בדיקה '+num);
-    var body=encodeURIComponent('תסקיר '+num+' מצורף. תוצאה: '+result+' בדיקה הבאה: '+nextDate+' בברכה, '+inspData.inspector_name);
-    window.open('mailto:'+recipients+'?subject='+subject+'&body='+body,'_blank');
-    toast('תסקיר '+num+' נשמר ונשלח! 📧','success');
+
+  if(sendOnSave && (ownerEmail||supEmail)){
+    markSent(inspId);
   } else {
     toast('תסקיר '+num+' נשמר! ✅','success');
   }
@@ -3100,39 +3120,41 @@ async function submitReport(doSend) {
 
 async function generateAndUploadPDF(inspId) {
   toast('מייצר תסקיר PDF...', 'info');
-  
+
   var insp = DB.inspections.find(function(i){ return String(i.id) === String(inspId); });
   if(!insp) { toast('תסקיר לא נמצא', 'error'); return null; }
-  
+
   var eq = DB.equipment.find(function(e){ return String(e.id) === String(insp.equipment_id || insp.equipId); }) || {};
   var cl = DB.clients.find(function(c){ return String(c.id) === String(insp.client_id || insp.clientId); }) || {};
   var defs = DB.defects.filter(function(d){ return String(d.inspId || d.inspection_id) === String(inspId); });
-  
+
   var inspNum = insp.inspection_num || insp.num || '';
-  
+
+  // חתימה מהגדרות
   var sigImageHtml = '<br><br><br>';
   if(DB.settings && DB.settings.signature) {
-    sigImageHtml = '<img src="' + DB.settings.signature + '" style="max-height:75px; display:block; margin:0 auto;" />';
+    sigImageHtml = '<img src="' + DB.settings.signature + '" style="max-height:75px;display:block;margin:0 auto;" />';
   }
 
   var findingsText = (insp.findings || '').trim();
-  var findingsHtml = findingsText ? esc(findingsText).replace(/\n/g, '<br>') : 'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.';
+  var findingsHtml = findingsText ? esc(findingsText).replace(/
+/g, '<br>') : 'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.';
 
   var defectsHtml = '';
   if(defs.length > 0) {
     var defRows = defs.map(function(d, idx) {
-      var sev = d.severity === 'critical' ? '🔴 קריטי' : (d.severity === 'medium' ? '🟡 בינוני' : '🟢 קל');
+      var sev = d.severity==='critical'?'🔴 קריטי':(d.severity==='medium'?'🟡 בינוני':'🟢 קל');
       return '<tr>' +
-             '<td style="padding:10px; border:1px solid #c4cede;">' + (idx+1) + '</td>' +
-             '<td style="padding:10px; border:1px solid #c4cede; font-weight:bold;">' + esc(d.text) + '</td>' +
-             '<td style="padding:10px; border:1px solid #c4cede;">' + sev + '</td>' +
-             '<td style="padding:10px; border:1px solid #c4cede;">' + esc(d.required_action || d.action || '—') + '</td>' +
-             '<td style="padding:10px; border:1px solid #c4cede;">' + fmt(d.deadline) + '</td>' +
-             '</tr>';
+        '<td style="padding:10px;border:1px solid #c4cede;">'+(idx+1)+'</td>' +
+        '<td style="padding:10px;border:1px solid #c4cede;font-weight:bold;">'+esc(d.text)+'</td>' +
+        '<td style="padding:10px;border:1px solid #c4cede;">'+sev+'</td>' +
+        '<td style="padding:10px;border:1px solid #c4cede;">'+esc(d.required_action||d.action||'—')+'</td>' +
+        '<td style="padding:10px;border:1px solid #c4cede;">'+fmt(d.deadline)+'</td>' +
+        '</tr>';
     }).join('');
     defectsHtml =
       '<div style="margin-top:30px;">' +
-        '<h4 style="background:#fee2e2;color:#991b1b;padding:10px 15px;margin:0;border:1px solid #fecaca;border-radius:8px 8px 0 0;font-size:15px;">ליקויים ופעולות לתיקון (' + defs.length + ')</h4>' +
+        '<h4 style="background:#fee2e2;color:#991b1b;padding:10px 15px;margin:0;border:1px solid #fecaca;border-radius:8px 8px 0 0;font-size:15px;">ליקויים ופעולות לתיקון ('+defs.length+')</h4>' +
         '<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #fecaca;text-align:right;">' +
           '<tr style="background:#fef2f2;">' +
             '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:5%;">#</th>' +
@@ -3146,37 +3168,37 @@ async function generateAndUploadPDF(inspId) {
       '</div>';
   }
 
-  var resultColor = insp.result==='approved' ? '#059669' : insp.result==='rejected' ? '#dc2626' : '#d97706';
-  var resultText  = insp.result==='approved' ? '✅ אושר לשימוש' : insp.result==='rejected' ? '🚫 נפסל לשימוש!' : '⚠️ אושר לשימוש בתנאים';
+  var resultColor = insp.result==='approved'?'#059669':insp.result==='rejected'?'#dc2626':'#d97706';
+  var resultText  = insp.result==='approved'?'✅ אושר לשימוש':insp.result==='rejected'?'🚫 נפסל לשימוש!':'⚠️ אושר בתנאים';
   var inspectorName = esc(insp.inspector_name||insp.inspector||(DB.settings&&DB.settings.name?DB.settings.name:'בודק מוסמך'));
-  var licStr = (DB.settings && DB.settings.lic) ? 'מ.ר. ' + DB.settings.lic : 'בודק מוסמך';
+  var licStr = (DB.settings&&DB.settings.lic)?'מ.ר. '+DB.settings.lic:'בודק מוסמך';
 
   var htmlContent =
-    '<div style="padding:40px 50px;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">' +
+    '<div id="pdf-wrapper" style="padding:40px 50px;font-family:Arial,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;width:800px;">' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a56db;padding-bottom:15px;margin-bottom:30px;">' +
       '<div><h1 style="margin:0;color:#1e3a8a;font-size:28px;">תסקיר בטיחות הנדסי</h1>' +
-      '<h3 style="margin:8px 0 0 0;color:#64748b;font-size:16px;">מספר תסקיר: <span dir="ltr">' + inspNum + '</span></h3></div>' +
+      '<h3 style="margin:8px 0 0 0;color:#64748b;font-size:16px;">מספר תסקיר: <span dir="ltr">'+inspNum+'</span></h3></div>' +
       '<div style="text-align:left;background:#f8fafc;padding:12px 24px;border-radius:8px;border:1px solid #e2e8f0;">' +
       '<h2 style="margin:0;color:#1a56db;font-size:22px;">InspectPro</h2>' +
-      '<div style="font-size:12px;color:#475569;margin-top:4px;">תאריך הפקה: ' + new Date().toLocaleDateString("he-IL") + '</div></div>' +
+      '<div style="font-size:12px;color:#475569;margin-top:4px;">תאריך הפקה: '+new Date().toLocaleDateString("he-IL")+'</div></div>' +
     '</div>' +
     '<div style="display:flex;gap:20px;margin-bottom:30px;">' +
       '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;overflow:hidden;">' +
         '<div style="background:#f1f5f9;padding:10px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;font-size:14px;">🏢 פרטי הלקוח</div>' +
         '<div style="padding:15px;font-size:14px;line-height:1.8;">' +
-          '<div><span style="color:#64748b;">שם חברה:</span> <strong>' + esc(cl.name||'—') + '</strong></div>' +
-          '<div><span style="color:#64748b;">כתובת:</span> <strong>' + esc(cl.address||'—') + '</strong></div>' +
-          '<div><span style="color:#64748b;">איש קשר:</span> <strong>' + esc(cl.contact_name||cl.contact||'—') + '</strong></div>' +
-          '<div><span style="color:#64748b;">טלפון:</span> <strong dir="ltr">' + esc(cl.phone||'—') + '</strong></div>' +
+          '<div><span style="color:#64748b;">שם חברה:</span> <strong>'+esc(cl.name||'—')+'</strong></div>' +
+          '<div><span style="color:#64748b;">כתובת:</span> <strong>'+esc(cl.address||'—')+'</strong></div>' +
+          '<div><span style="color:#64748b;">איש קשר:</span> <strong>'+esc(cl.contact_name||cl.contact||'—')+'</strong></div>' +
+          '<div><span style="color:#64748b;">טלפון:</span> <strong dir="ltr">'+esc(cl.phone||'—')+'</strong></div>' +
         '</div>' +
       '</div>' +
       '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;overflow:hidden;">' +
         '<div style="background:#f1f5f9;padding:10px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;font-size:14px;">⚙️ פרטי המתקן</div>' +
         '<div style="padding:15px;font-size:14px;line-height:1.8;">' +
-          '<div><span style="color:#64748b;">סוג מתקן:</span> <strong>' + typeLabel(eq.type) + '</strong></div>' +
-          '<div><span style="color:#64748b;">יצרן ודגם:</span> <strong>' + esc(eq.brand||'') + ' ' + esc(eq.model||'') + '</strong></div>' +
-          '<div><span style="color:#64748b;">מ.מ:</span> <strong dir="ltr">' + esc(eq.serial_number||eq.serial||'—') + '</strong></div>' +
-          '<div><span style="color:#64748b;">מיקום:</span> <strong>' + esc(eq.location||'—') + '</strong></div>' +
+          '<div><span style="color:#64748b;">סוג:</span> <strong>'+typeLabel(eq.type)+'</strong></div>' +
+          '<div><span style="color:#64748b;">יצרן ודגם:</span> <strong>'+esc(eq.brand||'')+' '+esc(eq.model||'')+'</strong></div>' +
+          '<div><span style="color:#64748b;">מ.מ:</span> <strong dir="ltr">'+esc(eq.serial_number||eq.serial||'—')+'</strong></div>' +
+          '<div><span style="color:#64748b;">מיקום:</span> <strong>'+esc(eq.location||'—')+'</strong></div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -3185,66 +3207,74 @@ async function generateAndUploadPDF(inspId) {
       '<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:right;">' +
         '<tr>' +
           '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;background:#f8fafc;color:#64748b;">תאריך בדיקה</td>' +
-          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;"><strong>' + fmt(insp.inspection_date||insp.date) + '</strong></td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;"><strong>'+fmt(insp.inspection_date||insp.date)+'</strong></td>' +
           '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;background:#f8fafc;color:#64748b;">בדיקה הבאה</td>' +
-          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;width:25%;"><strong>' + fmt(insp.next_inspection_date||insp.nextDate) + '</strong></td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;width:25%;"><strong>'+fmt(insp.next_inspection_date||insp.nextDate)+'</strong></td>' +
         '</tr>' +
         '<tr>' +
           '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;background:#f8fafc;color:#64748b;">לחץ/עומס מאושר</td>' +
-          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;" dir="ltr"><strong>' + esc(insp.mwp||eq.mwp||'—') + '</strong></td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;" dir="ltr"><strong>'+esc(insp.mwp||eq.mwp||'—')+'</strong></td>' +
           '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;background:#f8fafc;color:#64748b;">סוג בדיקה</td>' +
-          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;"><strong>' + inspTypeLabel(insp.inspection_type||insp.type) + '</strong></td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;"><strong>'+inspTypeLabel(insp.inspection_type||insp.type)+'</strong></td>' +
         '</tr>' +
         '<tr>' +
           '<td style="padding:15px;border-left:1px solid #dde3ef;background:#f8fafc;color:#64748b;">סטטוס סופי</td>' +
-          '<td colspan="3" style="padding:15px;font-size:16px;font-weight:bold;color:' + resultColor + ';">' + resultText + '</td>' +
+          '<td colspan="3" style="padding:15px;font-size:16px;font-weight:bold;color:'+resultColor+';">'+resultText+'</td>' +
         '</tr>' +
       '</table>' +
     '</div>' +
     '<div style="margin-bottom:30px;">' +
       '<h4 style="border-bottom:2px solid #e2e8f0;padding-bottom:8px;color:#1e3a8a;margin-bottom:12px;font-size:15px;">📝 ממצאים והערות</h4>' +
-      '<div style="background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #dde3ef;font-size:14px;line-height:1.6;">' + findingsHtml + '</div>' +
+      '<div style="background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #dde3ef;font-size:14px;line-height:1.6;">'+findingsHtml+'</div>' +
     '</div>' +
     defectsHtml +
     '<div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">' +
-      '<div style="font-size:12px;color:#94a3b8;line-height:1.5;">מסמך זה הופק אלקטרונית ומאושר ע"י המערכת.<br>InspectPro - מערכת לניהול בדיקות בטיחות.</div>' +
+      '<div style="font-size:12px;color:#94a3b8;line-height:1.5;">מסמך זה הופק אלקטרונית.<br>InspectPro - מערכת לניהול בדיקות בטיחות.</div>' +
       '<div style="text-align:center;width:250px;">' +
         sigImageHtml +
         '<div style="border-top:1px solid #cbd5e1;padding-top:8px;margin-top:8px;">' +
-          '<div style="font-size:16px;font-weight:bold;color:#1e293b;">' + inspectorName + '</div>' +
-          '<div style="font-size:13px;color:#64748b;">' + licStr + '</div>' +
+          '<div style="font-size:16px;font-weight:bold;color:#1e293b;">'+inspectorName+'</div>' +
+          '<div style="font-size:13px;color:#64748b;">'+licStr+'</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
     '</div>';
 
-  var tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
-  tempDiv.style.position = 'absolute';
-  tempDiv.style.left = '-9999px';
-  document.body.appendChild(tempDiv);
+  // אלמנט נסתר אבל מרונדר (visibility:hidden לא מוריד מה-DOM)
+  var tempContainer = document.createElement('div');
+  tempContainer.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;visibility:hidden;';
+  tempContainer.innerHTML = htmlContent;
+  document.body.appendChild(tempContainer);
+
+  var elementToPrint = tempContainer.querySelector('#pdf-wrapper');
 
   var opt = {
-    margin: [15, 10, 15, 10],
+    margin: [10, 10, 10, 10],
     filename: inspNum + '.pdf',
-    image: { type: 'jpeg', quality: 1 },
+    image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true, letterRendering: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
   try {
-    var pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
-    document.body.removeChild(tempDiv);
+    // השהייה לאחר רינדור
+    await new Promise(function(resolve){ setTimeout(resolve, 300); });
+
+    var pdfBlob = await html2pdf().set(opt).from(elementToPrint).output('blob');
+    document.body.removeChild(tempContainer);
+
     var blobUrl = URL.createObjectURL(pdfBlob);
     window.open(blobUrl, '_blank');
+
     var fileName = _user.id + '/' + inspNum + '_' + Date.now() + '.pdf';
     var sb = getSB();
     var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
     if(r.error) throw r.error;
-    toast('PDF מעוצב הופק ונשמר! 📄', 'success');
+
+    toast('PDF הופק ונשמר! 📄', 'success');
     return fileName;
   } catch(err) {
-    if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+    if(document.body.contains(tempContainer)) document.body.removeChild(tempContainer);
     toast('שגיאה ביצירת PDF', 'error');
     console.error(err);
     return null;
@@ -3705,10 +3735,30 @@ function startLiveSpeech(targetId){return makeSR(targetId);}
 // ════════════════════════════════════════════════════════
 // SIGNATURE
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// SIGNATURE
+// ════════════════════════════════════════════════════════
 function attachSignatureEvents(canvasId) {
-  const canvas = ge(canvasId); if(!canvas) return;
+  const canvas = ge(canvasId);
+  if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    if(rect.width > 0 && canvas.width !== rect.width) {
+      const temp = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      canvas.width = rect.width;
+      canvas.height = 140;
+      ctx.putImageData(temp, 0, 0);
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  setTimeout(function() {
+    canvas.width = canvas.parentElement.offsetWidth || 400;
+    canvas.height = 140;
+  }, 100);
+
   let drawing=false, lx=0, ly=0;
   function getSigPos(e) {
     const r = canvas.getBoundingClientRect();
