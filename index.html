@@ -23,7 +23,7 @@ button,input,select,textarea{font-family:inherit;}
 button{cursor:pointer;}
 
 /* ── LAYOUT ── */
-#app{display:none;height:100vh;overflow:hidden;}
+#app{display:none;height:100%;overflow:hidden;}
 #sidebar{width:230px;background:#0f172a;display:flex;flex-direction:column;height:100vh;flex-shrink:0;transition:width .25s;overflow:hidden;}
 #sidebar.collapsed{width:58px;}
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
@@ -122,7 +122,8 @@ button{cursor:pointer;}
 .tabs{display:flex;gap:2px;padding:3px;background:var(--s2);border-radius:9px;border:1px solid var(--bdr);}
 .tab{flex:1;padding:7px 10px;border-radius:7px;border:none;background:transparent;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap;}
 .tab.active{background:var(--white);color:var(--blue);box-shadow:var(--sh);}
-.tab-content{display:none;}.tab-content.active{display:block;}
+.tab-content, .insp-tab-content { display: none; }
+.tab-content.active, .insp-tab-content.active { display: block; animation: fadeUp .2s ease; }
 
 /* ── OVERLAY / MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(3px);}
@@ -355,7 +356,6 @@ button{cursor:pointer;}
     <button class="nav-item" onclick="navTo('calendar')"><span class="ni">📅</span><span class="nav-lbl">לוח שנה</span></button>
     <button class="nav-item" onclick="navTo('models')"><span class="ni">📚</span><span class="nav-lbl">מאגר דגמים</span></button>
     <button class="nav-item" onclick="navTo('settings')"><span class="ni">⚙️</span><span class="nav-lbl">הגדרות</span></button>
-    <button class="nav-item" onclick="navTo('inspectors')"><span class="ni">👷</span><span class="nav-lbl">מפקחים</span></button>
     <button class="nav-item" onclick="navTo('checklists')" id="page-nav-checklists"><span class="ni">📋</span><span class="nav-lbl">צ.ליסט</span></button>
   </nav>
   <div class="sb-foot" id="sb-foot">
@@ -787,13 +787,8 @@ button{cursor:pointer;}
                 <input type="email" id="i-owner-email" dir="ltr" placeholder="owner@factory.co.il">
               </div>
               <div class="form-group">
-                <label>מפקח עבודה</label>
-                <div class="flex gap2">
-                  <select id="i-supervisor-select" onchange="onInspectorSelect()" style="flex:1">
-                    <option value="">בחר מפקח...</option>
-                  </select>
-                  <input type="email" id="i-supervisor-email" dir="ltr" placeholder="supervisor@gov.il" style="flex:1">
-                </div>
+                <label>מייל מפקח עבודה</label>
+                <input type="email" id="i-supervisor-email" dir="ltr" placeholder="supervisor@gov.il">
               </div>
               <div class="form-group form-full">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -928,13 +923,19 @@ button{cursor:pointer;}
             <div class="form-group mb3"><label>מספר רישיון</label><input type="text" id="s-lic" dir="ltr"></div>
             <div class="form-group mb3"><label>טלפון</label><input type="tel" id="s-phone" dir="ltr"></div>
             <div class="form-group mb3"><label>אימייל</label><input type="email" id="s-email" dir="ltr"></div>
-            <button class="btn btn-primary" onclick="saveSettings()">שמור הגדרות</button>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><span>💾</span><h3>נתונים</h3></div>
+          <div class="card-header"><span>✍️</span><h3>חתימה דיגיטלית קבועה</h3><button class="btn btn-secondary btn-xs" onclick="clearSettingsSig()">נקה</button></div>
           <div class="card-body">
-            <div class="alert alert-success mb3">✅ נתונים נשמרים אוטומטית על המכשיר</div>
+            <div class="alert alert-info mb3" style="font-size:11px;">חתימה זו תצורף אוטומטית לכל תסקיר PDF.</div>
+            <canvas id="settings-sig-canvas" style="width:100%;height:140px;border:1.5px solid var(--bdr);border-radius:var(--r2);touch-action:none;cursor:crosshair;background:#fff;"></canvas>
+            <button class="btn btn-primary mt3" style="width:100%;justify-content:center;padding:10px;" onclick="saveSettings()">💾 שמור הגדרות וחתימה</button>
+          </div>
+        </div>
+        <div class="card form-full">
+          <div class="card-header"><span>💾</span><h3>נתונים וגיבוי</h3></div>
+          <div class="card-body">
             <div class="flex gap2 mb3">
               <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 ייצוא CSV</button>
               <button class="btn btn-secondary btn-sm" onclick="exportBackup()">💾 גיבוי JSON</button>
@@ -946,43 +947,6 @@ button{cursor:pointer;}
     </div>
 
   </div><!-- /content -->
-
-  <!-- INSPECTORS PAGE -->
-  <section class="page" id="page-inspectors">
-    <div style="padding:18px">
-      <div class="flex fac gap3 mb4">
-        <h2 style="font-size:16px;font-weight:800">👷 מפקחי עבודה אזוריים</h2>
-        <button class="btn btn-primary btn-sm" onclick="openAddInspectorModal()">+ הוסף מפקח</button>
-      </div>
-      <div class="card">
-        <table class="tbl">
-          <thead><tr>
-            <th>שם</th><th>אזור</th><th>אימייל</th><th>טלפון</th><th></th>
-          </tr></thead>
-          <tbody id="inspectors-tbl"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- ADD INSPECTOR MODAL -->
-  <div class="overlay" id="modal-addInspector">
-    <div class="modal" style="max-width:480px">
-      <div class="modal-header"><span>👷</span><h3>הוסף מפקח עבודה</h3>
-        <button class="modal-close" onclick="closeModal('addInspector')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group mb3"><label>שם מלא</label><input type="text" id="insp-name" placeholder="ישראל ישראלי"></div>
-        <div class="form-group mb3"><label>אזור</label><input type="text" id="insp-region" placeholder="תל אביב, חיפה..."></div>
-        <div class="form-group mb3"><label>אימייל</label><input type="email" id="insp-email" dir="ltr" placeholder="inspector@gov.il"></div>
-        <div class="form-group"><label>טלפון</label><input type="tel" id="insp-phone" dir="ltr" placeholder="050-0000000"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('addInspector')">ביטול</button>
-        <button class="btn btn-primary" onclick="saveInspector()">💾 שמור</button>
-      </div>
-    </div>
-  </div>
 
   <!-- CHECKLISTS PAGE -->
   <section class="page" id="page-checklists">
@@ -1245,8 +1209,7 @@ button{cursor:pointer;}
       <div class="alert alert-info mb3">📷 צלם את טבלת העומסים – AI יחלץ את הנתונים אוטומטית</div>
       <div class="flex gap2 mb3">
         <button class="btn btn-primary btn-sm" onclick="openCamera('table')">📷 צלם טבלה</button>
-        <button class="btn btn-secondary
- onclick="closeModal('scanTable')">ביטול</button>
+        <button class="btn btn-secondary" onclick="closeModal('scanTable')">ביטול</button>
       </div>
     </div>
   </div>
@@ -1831,7 +1794,6 @@ function renderPage(p) {
   };
   if(p==='inspection') populateInspSelects();
   if(p==='checklists') renderChecklistEditor();
-  if(p==='inspectors') renderInspectors();
   if(renderers[p]) renderers[p]();
   updateBadges();
 }
@@ -2031,7 +1993,11 @@ function onClientChange() {
   const eqs = DB.equipment.filter(e=>String(e.clientId)===String(cId));
   eqSel.innerHTML = '<option value="">בחר מתקן...</option>' + eqs.map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)} – ${esc(e.location||'')}</option>`).join('');
   // Populate contact
-  if(cl) { if(ge('i-contact'))ge('i-contact').value=cl.contact||''; if(ge('i-phone'))ge('i-phone').value=cl.phone||''; }
+  if(cl) {
+    if(ge('i-contact')) ge('i-contact').value = cl.contact||'';
+    if(ge('i-phone'))   ge('i-phone').value   = cl.phone||'';
+    if(ge('i-owner-email') && cl.email) ge('i-owner-email').value = cl.email;
+  }
 }
 
 function onEquipChange() {
@@ -3034,17 +3000,38 @@ function viewModel(id) {
 // ════════════════════════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// SETTINGS & SIGNATURE
+// ════════════════════════════════════════════════════════
 function renderSettings() {
   const s = DB.settings;
   if(ge('s-name')) ge('s-name').value=s.name||'';
   if(ge('s-lic')) ge('s-lic').value=s.lic||'';
   if(ge('s-phone')) ge('s-phone').value=s.phone||'';
   if(ge('s-email')) ge('s-email').value=s.email||'';
+  const c = ge('settings-sig-canvas');
+  if(c && s.signature) {
+    const ctx = c.getContext('2d');
+    const img = new Image();
+    img.onload = () => { ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(img,0,0); };
+    img.src = s.signature;
+  }
 }
+
 function saveSettings() {
-  DB.settings = { name:ge('s-name').value||'', lic:ge('s-lic').value||'', phone:ge('s-phone').value||'', email:ge('s-email').value||'' };
+  let sigData = '';
+  const c = ge('settings-sig-canvas');
+  if (c && !isCanvasBlank(c)) { sigData = c.toDataURL('image/png'); }
+  DB.settings = {
+    name: ge('s-name').value||'',
+    lic: ge('s-lic').value||'',
+    phone: ge('s-phone').value||'',
+    email: ge('s-email').value||'',
+    signature: sigData
+  };
   ge('sb-user').textContent = DB.settings.name + ' – בודק מוסמך';
-  saveDB(); toast('הגדרות נשמרו ✅','success');
+  saveDB();
+  toast('הגדרות וחתימה נשמרו ✅','success');
 }
 
 // ════════════════════════════════════════════════════════
@@ -3113,88 +3100,164 @@ async function submitReport(doSend) {
 
 async function generateAndUploadPDF(inspId) {
   toast('מייצר תסקיר PDF...', 'info');
-  var insp = DB.inspections.find(function(i){return String(i.id)===String(inspId);});
-  if(!insp){toast('תסקיר לא נמצא','error');return null;}
-  var eq = DB.equipment.find(function(e){return String(e.id)===String(insp.equipment_id||insp.equipId);})||{};
-  var cl = DB.clients.find(function(c){return String(c.id)===String(insp.client_id||insp.clientId);})||{};
-  var inspNum = insp.inspection_num||insp.num||'';
-  var sigCanvas = document.getElementById('sig-canvas');
-  var sigImageHtml = '';
-  if(sigCanvas) {
-    var sigData = sigCanvas.toDataURL('image/png');
-    sigImageHtml = '<img src="'+sigData+'" style="max-height:80px;display:block;margin:10px auto;" />';
+  
+  var insp = DB.inspections.find(function(i){ return String(i.id) === String(inspId); });
+  if(!insp) { toast('תסקיר לא נמצא', 'error'); return null; }
+  
+  var eq = DB.equipment.find(function(e){ return String(e.id) === String(insp.equipment_id || insp.equipId); }) || {};
+  var cl = DB.clients.find(function(c){ return String(c.id) === String(insp.client_id || insp.clientId); }) || {};
+  var defs = DB.defects.filter(function(d){ return String(d.inspId || d.inspection_id) === String(inspId); });
+  
+  var inspNum = insp.inspection_num || insp.num || '';
+  
+  var sigImageHtml = '<br><br><br>';
+  if(DB.settings && DB.settings.signature) {
+    sigImageHtml = '<img src="' + DB.settings.signature + '" style="max-height:75px; display:block; margin:0 auto;" />';
   }
-    // ── ליקויים ב-PDF ──
-  var inspIdStr = String(inspId||'');
-  var defs = (DB.defects||[]).filter(function(d){return String(d.inspId||d.inspection_id)===inspIdStr;});
-  var defsHtml = '';
-  if(defs.length){
-    defsHtml = '<div style="margin-top:20px;"><div style="font-weight:800;font-size:13px;color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:6px;margin-bottom:10px;">⚠️ ליקויים שנמצאו ('+defs.length+')</div>'+
-    '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">'+
-    '<thead><tr style="background:#f5f7fb;"><th style="padding:6px;border:1px solid #dde3ef;text-align:right;">תיאור</th><th style="padding:6px;border:1px solid #dde3ef;width:80px;">חומרה</th><th style="padding:6px;border:1px solid #dde3ef;width:100px;">דד-ליין</th></tr></thead><tbody>'+
-    defs.map(function(d){
-      var sev=d.severity==='critical'?'קריטי':d.severity==='medium'?'בינוני':'קל';
-      var col=d.severity==='critical'?'#dc2626':d.severity==='medium'?'#d97706':'#059669';
-      return '<tr><td style="padding:6px;border:1px solid #dde3ef;">'+(d.text||'')+'</td><td style="padding:6px;border:1px solid #dde3ef;color:'+col+';font-weight:700;text-align:center;">'+sev+'</td><td style="padding:6px;border:1px solid #dde3ef;text-align:center;">'+(d.deadline||'—')+'</td></tr>';
-    }).join('')+'</tbody></table></div>';
+
+  var findingsText = (insp.findings || '').trim();
+  var findingsHtml = findingsText ? esc(findingsText).replace(/\n/g, '<br>') : 'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.';
+
+  var defectsHtml = '';
+  if(defs.length > 0) {
+    var defRows = defs.map(function(d, idx) {
+      var sev = d.severity === 'critical' ? '🔴 קריטי' : (d.severity === 'medium' ? '🟡 בינוני' : '🟢 קל');
+      return '<tr>' +
+             '<td style="padding:10px; border:1px solid #c4cede;">' + (idx+1) + '</td>' +
+             '<td style="padding:10px; border:1px solid #c4cede; font-weight:bold;">' + esc(d.text) + '</td>' +
+             '<td style="padding:10px; border:1px solid #c4cede;">' + sev + '</td>' +
+             '<td style="padding:10px; border:1px solid #c4cede;">' + esc(d.required_action || d.action || '—') + '</td>' +
+             '<td style="padding:10px; border:1px solid #c4cede;">' + fmt(d.deadline) + '</td>' +
+             '</tr>';
+    }).join('');
+    defectsHtml =
+      '<div style="margin-top:30px;">' +
+        '<h4 style="background:#fee2e2;color:#991b1b;padding:10px 15px;margin:0;border:1px solid #fecaca;border-radius:8px 8px 0 0;font-size:15px;">ליקויים ופעולות לתיקון (' + defs.length + ')</h4>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #fecaca;text-align:right;">' +
+          '<tr style="background:#fef2f2;">' +
+            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:5%;">#</th>' +
+            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:35%;">תיאור הליקוי</th>' +
+            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:15%;">חומרה</th>' +
+            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:25%;">פעולה נדרשת</th>' +
+            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:20%;">דד-ליין</th>' +
+          '</tr>' +
+          defRows +
+        '</table>' +
+      '</div>';
   }
-  var statusColor=insp.result==='approved'?'#059669':insp.result==='rejected'?'#dc2626':'#d97706';
-  var statusText=insp.result==='approved'?'אושר לשימוש':insp.result==='rejected'?'לא אושר':'אושר בתנאי';
+
+  var resultColor = insp.result==='approved' ? '#059669' : insp.result==='rejected' ? '#dc2626' : '#d97706';
+  var resultText  = insp.result==='approved' ? '✅ אושר לשימוש' : insp.result==='rejected' ? '🚫 נפסל לשימוש!' : '⚠️ אושר לשימוש בתנאים';
+  var inspectorName = esc(insp.inspector_name||insp.inspector||(DB.settings&&DB.settings.name?DB.settings.name:'בודק מוסמך'));
+  var licStr = (DB.settings && DB.settings.lic) ? 'מ.ר. ' + DB.settings.lic : 'בודק מוסמך';
+
   var htmlContent =
-    '<div style="direction:rtl;text-align:right;font-family:Arial,sans-serif;color:#111;background:#fff;padding:30px;">'+
-    '<div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:18px 22px;border-radius:10px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;">'+
-    '<div><div style="font-size:20px;font-weight:900;">InspectPro</div><div style="font-size:12px;opacity:0.8;">מערכת ניהול בדיקות הנדסיות</div></div>'+
-    '<div style="text-align:left;"><div style="font-size:16px;font-weight:700;">תסקיר בטיחות הנדסי</div><div style="font-size:12px;opacity:0.8;">מספר: '+inspNum+'</div></div></div>'+
-    '<div style="background:'+statusColor+';color:#fff;padding:12px;border-radius:8px;font-size:16px;font-weight:900;text-align:center;margin-bottom:18px;">'+statusText+'</div>'+
-    '<div style="display:flex;gap:14px;margin-bottom:18px;">'+
-    '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;padding:12px;">'+
-    '<div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">פרטי הלקוח</div>'+
-    '<div style="font-size:11px;line-height:1.9;"><b>שם:</b> '+(cl.name||'—')+'<br><b>כתובת:</b> '+(cl.address||'—')+'<br><b>איש קשר:</b> '+(cl.contact_name||cl.contact||'—')+'</div></div>'+
-    '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;padding:12px;">'+
-    '<div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">פרטי המתקן</div>'+
-    '<div style="font-size:11px;line-height:1.9;"><b>סוג:</b> '+(eq.type||'—')+'<br><b>יצרן ודגם:</b> '+(eq.brand||'')+' '+(eq.model||'')+'<br><b>מ.מ:</b> '+(eq.serial_number||eq.serial||'—')+'</div></div></div>'+
-    '<div style="border:1px solid #dde3ef;border-radius:8px;padding:12px;margin-bottom:18px;">'+
-    '<div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">פרטי הבדיקה</div>'+
-    '<div style="display:flex;gap:30px;font-size:11px;line-height:1.9;">'+
-    '<div><b>בודק:</b> '+(insp.inspector_name||insp.inspector||'—')+'<br><b>תאריך:</b> '+(insp.inspection_date||insp.date||'—')+'<br><b>סוג בדיקה:</b> '+(insp.inspection_type||insp.type||'—')+'</div>'+
-    '<div><b>בדיקה הבאה:</b> '+(insp.next_inspection_date||insp.nextDate||'—')+'<br><b>ציון:</b> '+(insp.score||'—')+'%<br><b>סכום:</b> '+(insp.amount?'NIS '+insp.amount.toLocaleString():'—')+'</div></div></div>'+
-    (insp.findings?'<div style="border:1px solid #dde3ef;border-radius:8px;padding:12px;margin-bottom:18px;"><div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">ממצאים והערות</div><div style="font-size:11px;white-space:pre-wrap;line-height:1.8;">'+insp.findings+'</div></div>':'')+
-    defsHtml+
-    '<div style="margin-top:28px;border-top:1px solid #dde3ef;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end;">'+
-    '<div style="text-align:center;min-width:180px;">'+sigImageHtml+'<div style="border-top:1px solid #111;padding-top:6px;font-size:11px;color:#6b7280;margin-top:4px;">חתימת הבודק המוסמך</div></div>'+
-    '<div style="font-size:10px;color:#9ca3af;text-align:left;">הופק ע"י InspectPro<br>'+new Date().toLocaleDateString('he-IL')+'</div>'+
-    '</div></div>';
-var tempDiv = document.createElement('div');
+    '<div style="padding:40px 50px;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;direction:rtl;text-align:right;color:#111;background:#fff;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a56db;padding-bottom:15px;margin-bottom:30px;">' +
+      '<div><h1 style="margin:0;color:#1e3a8a;font-size:28px;">תסקיר בטיחות הנדסי</h1>' +
+      '<h3 style="margin:8px 0 0 0;color:#64748b;font-size:16px;">מספר תסקיר: <span dir="ltr">' + inspNum + '</span></h3></div>' +
+      '<div style="text-align:left;background:#f8fafc;padding:12px 24px;border-radius:8px;border:1px solid #e2e8f0;">' +
+      '<h2 style="margin:0;color:#1a56db;font-size:22px;">InspectPro</h2>' +
+      '<div style="font-size:12px;color:#475569;margin-top:4px;">תאריך הפקה: ' + new Date().toLocaleDateString("he-IL") + '</div></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:20px;margin-bottom:30px;">' +
+      '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;overflow:hidden;">' +
+        '<div style="background:#f1f5f9;padding:10px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;font-size:14px;">🏢 פרטי הלקוח</div>' +
+        '<div style="padding:15px;font-size:14px;line-height:1.8;">' +
+          '<div><span style="color:#64748b;">שם חברה:</span> <strong>' + esc(cl.name||'—') + '</strong></div>' +
+          '<div><span style="color:#64748b;">כתובת:</span> <strong>' + esc(cl.address||'—') + '</strong></div>' +
+          '<div><span style="color:#64748b;">איש קשר:</span> <strong>' + esc(cl.contact_name||cl.contact||'—') + '</strong></div>' +
+          '<div><span style="color:#64748b;">טלפון:</span> <strong dir="ltr">' + esc(cl.phone||'—') + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;overflow:hidden;">' +
+        '<div style="background:#f1f5f9;padding:10px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;font-size:14px;">⚙️ פרטי המתקן</div>' +
+        '<div style="padding:15px;font-size:14px;line-height:1.8;">' +
+          '<div><span style="color:#64748b;">סוג מתקן:</span> <strong>' + typeLabel(eq.type) + '</strong></div>' +
+          '<div><span style="color:#64748b;">יצרן ודגם:</span> <strong>' + esc(eq.brand||'') + ' ' + esc(eq.model||'') + '</strong></div>' +
+          '<div><span style="color:#64748b;">מ.מ:</span> <strong dir="ltr">' + esc(eq.serial_number||eq.serial||'—') + '</strong></div>' +
+          '<div><span style="color:#64748b;">מיקום:</span> <strong>' + esc(eq.location||'—') + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="border:1px solid #dde3ef;border-radius:8px;margin-bottom:30px;overflow:hidden;">' +
+      '<div style="background:#f1f5f9;padding:10px 15px;font-weight:bold;border-bottom:1px solid #dde3ef;color:#1e3a8a;font-size:14px;">📊 תוצאות הבדיקה</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:right;">' +
+        '<tr>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;background:#f8fafc;color:#64748b;">תאריך בדיקה</td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;"><strong>' + fmt(insp.inspection_date||insp.date) + '</strong></td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;width:25%;background:#f8fafc;color:#64748b;">בדיקה הבאה</td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;width:25%;"><strong>' + fmt(insp.next_inspection_date||insp.nextDate) + '</strong></td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;background:#f8fafc;color:#64748b;">לחץ/עומס מאושר</td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;" dir="ltr"><strong>' + esc(insp.mwp||eq.mwp||'—') + '</strong></td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;border-left:1px solid #dde3ef;background:#f8fafc;color:#64748b;">סוג בדיקה</td>' +
+          '<td style="padding:12px 15px;border-bottom:1px solid #dde3ef;"><strong>' + inspTypeLabel(insp.inspection_type||insp.type) + '</strong></td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="padding:15px;border-left:1px solid #dde3ef;background:#f8fafc;color:#64748b;">סטטוס סופי</td>' +
+          '<td colspan="3" style="padding:15px;font-size:16px;font-weight:bold;color:' + resultColor + ';">' + resultText + '</td>' +
+        '</tr>' +
+      '</table>' +
+    '</div>' +
+    '<div style="margin-bottom:30px;">' +
+      '<h4 style="border-bottom:2px solid #e2e8f0;padding-bottom:8px;color:#1e3a8a;margin-bottom:12px;font-size:15px;">📝 ממצאים והערות</h4>' +
+      '<div style="background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #dde3ef;font-size:14px;line-height:1.6;">' + findingsHtml + '</div>' +
+    '</div>' +
+    defectsHtml +
+    '<div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">' +
+      '<div style="font-size:12px;color:#94a3b8;line-height:1.5;">מסמך זה הופק אלקטרונית ומאושר ע"י המערכת.<br>InspectPro - מערכת לניהול בדיקות בטיחות.</div>' +
+      '<div style="text-align:center;width:250px;">' +
+        sigImageHtml +
+        '<div style="border-top:1px solid #cbd5e1;padding-top:8px;margin-top:8px;">' +
+          '<div style="font-size:16px;font-weight:bold;color:#1e293b;">' + inspectorName + '</div>' +
+          '<div style="font-size:13px;color:#64748b;">' + licStr + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+
+  var tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlContent;
   tempDiv.style.position = 'absolute';
   tempDiv.style.left = '-9999px';
   document.body.appendChild(tempDiv);
+
   var opt = {
-    margin:10, filename:inspNum+'.pdf',
-    image:{type:'jpeg',quality:0.98},
-    html2canvas:{scale:2,useCORS:true,willReadFrequently:true},
-    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    margin: [15, 10, 15, 10],
+    filename: inspNum + '.pdf',
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
+
   try {
     var pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
     document.body.removeChild(tempDiv);
     var blobUrl = URL.createObjectURL(pdfBlob);
     window.open(blobUrl, '_blank');
-    // פתיחת PDF מיד בלשונית חדשה
-    var blobUrl = URL.createObjectURL(pdfBlob);
-    window.open(blobUrl, '_blank');
-    var fileName = _user.id+'/'+inspNum+'_'+Date.now()+'.pdf';
+    var fileName = _user.id + '/' + inspNum + '_' + Date.now() + '.pdf';
     var sb = getSB();
     var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
     if(r.error) throw r.error;
-    toast('PDF נשמר בענן ✅','success');
+    toast('PDF מעוצב הופק ונשמר! 📄', 'success');
     return fileName;
   } catch(err) {
     if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
-    toast('שגיאה ביצירת PDF','error');
+    toast('שגיאה ביצירת PDF', 'error');
     console.error(err);
     return null;
   }
+}
+
+
+
+function isCanvasBlank(canvas) {
+  var blank = document.createElement('canvas');
+  blank.width = canvas.width;
+  blank.height = canvas.height;
+  return canvas.toDataURL() === blank.toDataURL();
 }
 
 
@@ -3642,23 +3705,30 @@ function startLiveSpeech(targetId){return makeSR(targetId);}
 // ════════════════════════════════════════════════════════
 // SIGNATURE
 // ════════════════════════════════════════════════════════
-function initSig() {
-  const canvas=ge('sig-canvas');if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;
-  let drawing=false,lx=0,ly=0;
-  function getSigPos(e){
-    const r=canvas.getBoundingClientRect();
-    const touch=e.touches?e.touches[0]:e;
-    return{x:touch.clientX-r.left,y:touch.clientY-r.top};
+function attachSignatureEvents(canvasId) {
+  const canvas = ge(canvasId); if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+  let drawing=false, lx=0, ly=0;
+  function getSigPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return { x: touch.clientX - r.left, y: touch.clientY - r.top };
   }
-  canvas.addEventListener('mousedown',e=>{drawing=true;const p=getSigPos(e);lx=p.x;ly=p.y;});
-  canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getSigPos(e);lx=p.x;ly=p.y;});
-  canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getSigPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#1a56db';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();lx=p.x;ly=p.y;});
-  canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getSigPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#1a56db';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();lx=p.x;ly=p.y;});
-  ['mouseup','mouseleave','touchend'].forEach(ev=>canvas.addEventListener(ev,()=>drawing=false));
+  canvas.addEventListener('mousedown', e => { drawing=true; const p=getSigPos(e); lx=p.x; ly=p.y; });
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getSigPos(e); lx=p.x; ly=p.y; });
+  canvas.addEventListener('mousemove', e => { if(!drawing) return; const p=getSigPos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.strokeStyle='#1a56db'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.stroke(); lx=p.x; ly=p.y; });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing) return; const p=getSigPos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.strokeStyle='#1a56db'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.stroke(); lx=p.x; ly=p.y; });
+  ['mouseup','mouseleave','touchend'].forEach(ev => canvas.addEventListener(ev, () => drawing=false));
 }
-function clearSig(){const c=ge('sig-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
+
+function initSig() {
+  attachSignatureEvents('sig-canvas');
+  attachSignatureEvents('settings-sig-canvas');
+}
+
+function clearSig() { const c=ge('sig-canvas'); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
+function clearSettingsSig() { const c=ge('settings-sig-canvas'); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
 
 // ════════════════════════════════════════════════════════
 // MODALS
@@ -3741,68 +3811,6 @@ function checkMobile(){
   if(btn)btn.style.display=m?'flex':'none';
 }
 window.addEventListener('resize',checkMobile);
-
-// ════════════════════════════════════════════════════════
-// INSPECTORS (מפקחי עבודה)
-// ════════════════════════════════════════════════════════
-function renderInspectors() {
-  var tbody = ge('inspectors-tbl');
-  if(!tbody) return;
-  var list = DB.regionalInspectors || [];
-  tbody.innerHTML = list.length ? list.map(function(ins,i){
-    return '<tr>'+
-      '<td style="font-weight:600">'+esc(ins.name)+'</td>'+
-      '<td>'+esc(ins.region||'—')+'</td>'+
-      '<td dir="ltr">'+esc(ins.email||'—')+'</td>'+
-      '<td dir="ltr">'+esc(ins.phone||'—')+'</td>'+
-      '<td><button class="btn btn-danger btn-xs" onclick="deleteInspector('+i+')">מחק</button></td>'+
-    '</tr>';
-  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">אין מפקחים עדיין</td></tr>';
-  populateInspectorSelect();
-}
-
-function openAddInspectorModal() { openModal('addInspector'); }
-
-function saveInspector() {
-  var name = (ge('insp-name')||{}).value.trim();
-  var email = (ge('insp-email')||{}).value.trim();
-  if(!name||!email){toast('נא למלא שם ואימייל','error');return;}
-  if(!DB.regionalInspectors) DB.regionalInspectors = [];
-  DB.regionalInspectors.push({
-    name: name,
-    region: (ge('insp-region')||{}).value||'',
-    email: email,
-    phone: (ge('insp-phone')||{}).value||''
-  });
-  try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
-  closeModal('addInspector');
-  renderInspectors();
-  toast(name+' נוסף ✅','success');
-  ['insp-name','insp-region','insp-email','insp-phone'].forEach(function(id){var el=ge(id);if(el)el.value='';});
-}
-
-function deleteInspector(idx) {
-  if(!confirm('מחק מפקח זה?')) return;
-  DB.regionalInspectors.splice(idx,1);
-  try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
-  renderInspectors();
-}
-
-function populateInspectorSelect() {
-  var sel = ge('i-supervisor-select');
-  if(!sel) return;
-  var list = DB.regionalInspectors || [];
-  sel.innerHTML = '<option value="">בחר מפקח...</option>' +
-    list.map(function(ins){
-      return '<option value="'+esc(ins.email)+'">'+esc(ins.name)+' – '+esc(ins.region||'')+'</option>';
-    }).join('');
-}
-
-function onInspectorSelect() {
-  var sel = ge('i-supervisor-select');
-  var emailField = ge('i-supervisor-email');
-  if(sel && emailField) emailField.value = sel.value;
-}
 
 function toggleProfileMenu() {
   var m = ge('profile-menu');
