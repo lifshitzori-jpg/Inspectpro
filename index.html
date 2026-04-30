@@ -484,7 +484,7 @@ button{cursor:pointer;}
                   <select id="i-equip" onchange="onEquipChange()" style="flex:1">
                     <option value="">בחר מתקן...</option>
                   </select>
-                  <button class="btn btn-secondary btn-xs" style="white-space:nowrap" onclick="openModal('addEquip')">+ חדש</button>
+                  <button class="btn btn-secondary btn-xs" style="white-space:nowrap" onclick="openAddEquipFromInsp()">+ חדש</button>
                 </div>
               </div>
               <div class="form-group mb3">
@@ -758,9 +758,7 @@ button{cursor:pointer;}
       <!-- Tab 4: Summary -->
       <div class="insp-tab-content" id="itab-4">
         <div class="card mb4">
-          <div class="card-header"><span>📊</span><h3>תוצאת הבדיקה</h3>
-            <span id="summary-defects-count" style="font-size:12px;font-weight:700;"></span>
-          </div>
+          <div class="card-header"><span>📊</span><h3>תוצאת הבדיקה</h3></div>
           <div class="card-body">
             <div class="flex gap3 mb4" id="result-btns">
               <button class="btn btn-success" style="flex:1;justify-content:center;padding:14px" onclick="setResult('approved',this)">✅ אושר לשימוש</button>
@@ -1393,25 +1391,7 @@ async function loadFromSupabase(userId) {
     });
   } catch(e) {
     console.error('loadFromSupabase error:', e);
-    var savedSettings = DB.settings; // preserve settings
     DB = seed();
-    DB.settings = savedSettings;
-  }
-  // Load user settings from Supabase (signature etc.)
-  try {
-    var sb2 = getSB();
-    if(sb2 && _user) {
-      var settingsRes = await sb2.from('user_settings').select('settings_json').eq('user_id', _user.id).single();
-      if(settingsRes.data && settingsRes.data.settings_json) {
-        DB.settings = settingsRes.data.settings_json;
-      }
-    }
-  } catch(e2) {
-    // fallback to localStorage settings
-    try {
-      var lsDB = JSON.parse(localStorage.getItem(DB_KEY)||'{}');
-      if(lsDB.settings) DB.settings = lsDB.settings;
-    } catch(e3) {}
   }
   initAppAfterLogin();
 }
@@ -1437,14 +1417,6 @@ function saveDB() {
 
 function initAppAfterLogin() {
   try {
-    // Restore settings from localStorage if not loaded from Supabase yet
-    if(!DB.settings || !DB.settings.name) {
-      try {
-        var lsDB = JSON.parse(localStorage.getItem(DB_KEY)||'{}');
-        if(lsDB.settings) DB.settings = lsDB.settings;
-      } catch(e) {}
-    }
-
     // Hide login screen
     var lw = ge('login-wrap');
     if (lw) { lw.classList.remove('active'); lw.style.display = 'none'; }
@@ -1458,17 +1430,43 @@ function initAppAfterLogin() {
     if (ge('i-date')) ge('i-date').value = today;
     if (typeof calcNextInspDate === 'function') calcNextInspDate();
     if (typeof autoGenInspNum === 'function') autoGenInspNum();
-    // Set inspector name from settings
-    if(DB.settings && DB.settings.name && ge('i-inspector') && !ge('i-inspector').value) {
-      ge('i-inspector').value = DB.settings.name;
-    }
   } catch(e) { console.error('initAppAfterLogin error:', e); }
 }
 
 // ════════════════════════════════════════════════
 // INIT - Check session on load
 // ════════════════════════════════════════════════
-;
+window.addEventListener('load', function() {
+  // Enter key on password
+  var p = ge('lb-pass');
+  if (p) p.addEventListener('keydown', function(e) { if (e.key === 'Enter') lbLogin(); });
+
+  // Try Supabase session
+  try {
+    var sb = getSB();
+    if (sb) {
+      sb.auth.getSession().then(function(res) {
+        if (res.data && res.data.session) {
+          onLoggedIn(res.data.session.user);
+        } else {
+          // No session - show login screen
+          showLoginScreen();
+        }
+      }).catch(function() { showLoginScreen(); });
+      
+      sb.auth.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_IN' && session && !_user) {
+          onLoggedIn(session.user);
+        }
+      });
+    } else {
+      showLoginScreen();
+    }
+  } catch(e) {
+    console.warn('Supabase error:', e.message);
+    showLoginScreen();
+  }
+});
 
 function showLoginScreen() {
   var lw = ge('login-wrap');
@@ -1968,40 +1966,13 @@ function showInspTab(idx) {
   if(tc) tc.classList.add('active');
   const tb = document.querySelectorAll('.insp-tab')[idx];
   if(tb) tb.classList.add('active');
-
-  // טאב 1: עדכן צ'ק-ליסט לפי הבחירה הנוכחית
-  if(idx === 1) {
-    updateChecklist();
-  }
-
-  // טאב 3: עדכן תצוגת ליקויים
-  if(idx === 3) {
-    renderCurrentDefects();
-  }
-
-  // טאב 4: חתימה אוטומטית + סיכום ליקויים
+  // אם עוברים לטאב הסיכום – ודא שהקנבס מקבל גודל נכון
   if(idx === 4) {
-    // הצג סיכום ליקויים בטאב הסיכום
-    var summaryDefEl = ge('summary-defects-count');
-    if(summaryDefEl) {
-      summaryDefEl.textContent = _currentDefects.length > 0
-        ? _currentDefects.length + ' ליקויים רשומים'
-        : 'לא נרשמו ליקויים';
-      summaryDefEl.style.color = _currentDefects.length > 0 ? 'var(--red)' : 'var(--green)';
-    }
-
     setTimeout(function() {
       var c = ge('sig-canvas');
-      if(c && (c.width === 0 || c.height === 0 || c.width === 300)) {
+      if(c && (c.width === 0 || c.height === 0)) {
         c.width = c.parentElement.offsetWidth || 400;
         c.height = 140;
-      }
-      // הזרקת חתימה מהגדרות אם הקנבס ריק
-      if(c && DB.settings && DB.settings.signature && isCanvasBlank(c)) {
-        var ctx = c.getContext('2d');
-        var img = new Image();
-        img.onload = function() { ctx.drawImage(img, 0, 0, c.width, c.height); };
-        img.src = DB.settings.signature;
       }
     }, 50);
   }
@@ -2778,23 +2749,13 @@ function openReportView(id) {
   var eq = DB.equipment.find(function(x){ return String(x.id)===String(i.equipId||i.equipment_id); });
   var cl = DB.clients.find(function(x){ return String(x.id)===String(i.clientId||i.client_id); });
   var defs = DB.defects.filter(function(d){ return String(d.inspId||d.inspection_id)===inspId; });
-
   var eqH='';
   if(eq){eqH='<div class="mb2"><strong>מתקן:</strong> '+esc(eq.brand)+' '+esc(eq.model)+'</div>'+
     '<div class="mb2"><strong>מ.מ:</strong> '+esc(eq.serial_number||eq.serial||'?')+'</div>'+
     '<div class="mb2"><strong>שנת ייצור:</strong> '+(eq.manufacture_year||eq.year||'?')+'</div>'+
     '<div><strong>מיקום:</strong> '+esc(eq.location||'?')+'</div>';}
-
   var fH='';
   if(i.findings){fH='<div class="card mb3"><div class="card-header"><span>📝</span><h3>ממצאים</h3></div><div class="card-body" style="font-size:13px;white-space:pre-wrap">'+esc(i.findings)+'</div></div>';}
-
-  var photosH='';
-  if(i.photos && i.photos.length > 0) {
-    photosH = '<div class="card mb3"><div class="card-header"><span>📷</span><h3>תיעוד חזותי ('+i.photos.length+')</h3></div><div class="card-body"><div class="media-grid" style="grid-template-columns:repeat(4,1fr);">' +
-    i.photos.map(function(p){ return '<div class="media-thumb" style="aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="'+p+'" style="width:100%;height:100%;object-fit:cover;"></div>'; }).join('') +
-    '</div></div></div>';
-  }
-
   var dH='<div class="alert alert-success">לא נרשמו ליקויים ✅</div>';
   if(defs.length){
     var di=defs.map(function(d){
@@ -2806,8 +2767,10 @@ function openReportView(id) {
     }).join('');
     dH='<div class="card"><div class="card-header"><span>⚠️</span><h3>ליקויים ('+defs.length+')</h3></div><div style="padding:0 16px">'+di+'</div></div>';
   }
-
   var numDisplay=esc(i.inspection_num||i.num||'?');
+  var dateDisplay=fmt(i.inspection_date||i.date);
+  var nextDateDisplay=fmt(i.next_inspection_date||i.nextDate);
+  var inspectorDisplay=esc(i.inspector_name||i.inspector||'?');
   var modal=document.createElement('div');
   modal.className='overlay open';
   modal.innerHTML=
@@ -2818,9 +2781,9 @@ function openReportView(id) {
     '<div class="card" style="margin:0"><div class="card-header"><span>📋</span><h3>פרטי הבדיקה</h3></div>'+
     '<div class="card-body" style="font-size:13px">'+
     '<div class="mb2"><strong>מספר:</strong> <code>'+numDisplay+'</code></div>'+
-    '<div class="mb2"><strong>תאריך:</strong> '+fmt(i.inspection_date||i.date)+'</div>'+
-    '<div class="mb2"><strong>בודק:</strong> '+esc(i.inspector_name||i.inspector||'?')+'</div>'+
-    '<div class="mb2"><strong>בדיקה הבאה:</strong> '+fmt(i.next_inspection_date||i.nextDate)+'</div>'+
+    '<div class="mb2"><strong>תאריך:</strong> '+dateDisplay+'</div>'+
+    '<div class="mb2"><strong>בודק:</strong> '+inspectorDisplay+'</div>'+
+    '<div class="mb2"><strong>בדיקה הבאה:</strong> '+nextDateDisplay+'</div>'+
     '<div class="mb2"><strong>תוצאה:</strong> '+resPill(i.result)+'</div>'+
     '<div class="mb2"><strong>ציון:</strong> '+(i.score||'?')+'%</div>'+
     '</div></div>'+
@@ -2828,14 +2791,14 @@ function openReportView(id) {
     '<div class="card-body" style="font-size:13px">'+
     '<div class="mb2"><strong>לקוח:</strong> '+esc(cl?cl.name:'?')+'</div>'+
     '<div class="mb2"><strong>טלפון:</strong> '+esc(cl?cl.phone:'?')+'</div>'+
-    eqH+'</div></div></div>'+fH+photosH+dH+
+    eqH+'</div></div></div>'+fH+dH+
     '<div class="flex gap2 mt3" style="font-size:12px;color:var(--text3)">'+
     '<span>סכום: '+(i.amount?'₪'+i.amount.toLocaleString():'?')+'</span>'+
     '</div></div>'+
     '<div class="modal-footer">'+
     '<button class="btn btn-secondary" id="rvcl">סגור</button>'+
-    '<button class="btn btn-primary" onclick="generateAndUploadPDF(\'' + inspId + '\')">📄 הפק PDF</button>'+
-    '<button class="btn btn-success" onclick="markSent(\'' + inspId + '\')">📧 שלח למייל</button>'+
+    '<button class="btn btn-primary" onclick="generateAndUploadPDF(\''+inspId+'\')">📄 הפק PDF</button>'+
+    '<button class="btn btn-success" onclick="markSent(\''+inspId+'\')">📧 שלח למייל</button>'+
     (eq?'<button class="btn btn-secondary" id="rvnw">+ חדש למתקן</button>':'')+
     '</div></div>';
   var close=function(){modal.remove();};
@@ -2844,6 +2807,314 @@ function openReportView(id) {
   modal.querySelector('#rvcl').addEventListener('click',close);
   if(eq){var nb=modal.querySelector('#rvnw');if(nb)nb.addEventListener('click',function(){close();startInspFor(eq.id);});}
   document.body.appendChild(modal);
+}
+
+function importPrevDefects(inspId) {
+  var defs=DB.defects.filter(function(d){return d.inspId===inspId&&d.status==='open';});
+  if(!defs.length){toast('אין ליקויים פתוחים בתסקיר זה','warn');return;}
+  var card=ge('prev-def-card');var list=ge('prev-def-list');
+  if(!card||!list)return;
+  card.style.display='block';
+  list.innerHTML=defs.map(function(d){
+    return '<div class="flex fac gap2" style="padding:10px 0;border-bottom:1px solid var(--bdr)">'+
+      '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(d.text)+'</div>'+
+      '<div style="font-size:11px;color:var(--text3)">'+esc(d.action||'?')+' · '+sevPill(d.severity)+'</div></div>'+
+      '<button class="btn btn-xs btn-danger" onclick="importOneDefect(\''+d.id+'\',this)">+ הוסף</button></div>';
+  }).join('');
+  showInspTab(3);
+  toast('נמצאו '+defs.length+' ליקויים פתוחים','info');
+}
+
+function importOneDefect(defId, btn) {
+  if(_currentDefects.find(function(d){return d.originId===defId;})){toast('ליקוי זה כבר נוסף','warn');return;}
+  var orig=DB.defects.find(function(x){return x.id===defId;});if(!orig)return;
+  var nd=Object.assign({},orig,{id:nid('defect'),originId:defId,status:'open',
+    createdAt:new Date().toISOString().split('T')[0],inspId:null,
+    clientId:parseInt((ge('i-client')||{}).value)||orig.clientId,
+    equipId:parseInt((ge('i-equip')||{}).value)||orig.equipId});
+  _currentDefects.push(nd);DB.defects.push(nd);saveDB();renderCurrentDefects();
+  btn.textContent='✅';btn.disabled=true;btn.style.opacity='0.6';
+  toast('ליקוי יובא','success');
+}
+
+function filterEquipmentOverdue() {
+  navTo('equipment');
+  setTimeout(function(){
+    var results=DB.equipment.filter(function(e){return daysUntil(e.nextInsp)<0;});
+    renderEquipment(results);
+    toast(results.length+' מתקנים באיחור','warn');
+  },120);
+}
+
+function makeSR(targetId) {
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('תמלול חי דורש Chrome','warn');return null;}
+  var r=new SR();r.lang='he-IL';r.continuous=true;r.interimResults=true;
+  r.onresult=function(e){
+    var fin='',int_='';
+    for(var i=0;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript+' ';else int_+=e.results[i][0].transcript;}
+    var el=ge(targetId);
+    if(el){if(el.tagName==='TEXTAREA')el.value=fin+(int_?'['+int_+']':'');else el.textContent=fin+(int_?'['+int_+']':'');}
+  };
+  r.onerror=function(e){toast('שגיאת תמלול: '+e.error,'error');};
+  r.start();return r;
+}
+
+var _srMain=null;
+function toggleLiveSpeechMain(){
+  var btn=ge('live-speech-btn'),st=ge('live-speech-status');
+  if(_srMain){_srMain.stop();_srMain=null;if(btn){btn.textContent='🎙 תמלול חי';btn.classList.remove('btn-danger');}if(st)st.style.display='none';}
+  else{_srMain=makeSR('transcript-box');if(_srMain){if(btn){btn.textContent='⏹ עצור';btn.classList.add('btn-danger');}if(st)st.style.display='flex';toast('מתמלל...','info');}}
+}
+
+var _srNotes=null;
+function toggleLiveNotesRec(){
+  var btn=ge('notes-live-btn'),st=ge('notes-live-status');
+  if(_srNotes){_srNotes.stop();_srNotes=null;if(btn){btn.textContent='🎙 תמלול חי';btn.classList.remove('btn-danger');}if(st)st.style.display='none';}
+  else{_srNotes=makeSR('i-findings');if(_srNotes){if(btn){btn.textContent='⏹ עצור';btn.classList.add('btn-danger');}if(st)st.style.display='flex';toast('מתמלל...','info');}}
+}
+
+var _srDef=null;
+function toggleDefectLive(){
+  var btn=ge('def-live-btn'),st=ge('defect-live-status');
+  if(_srDef){_srDef.stop();_srDef=null;if(btn){btn.textContent='🎙';btn.style.background='';}if(st)st.style.display='none';}
+  else{_srDef=makeSR('d-text');if(_srDef){if(btn){btn.textContent='⏹';btn.style.background='var(--rl)';}if(st)st.style.display='flex';toast('מתמלל...','info');}}
+}
+
+function startVideoRec(){toast('הקלטת וידאו תתמך בגרסה הבאה','info');}
+
+async function markSent(id){
+  var i=DB.inspections.find(function(x){return String(x.id)===String(id);});if(!i)return;
+  var ownerEmail=i.ownerEmail||i.owner_email||'';
+  var supEmail=i.supEmail||i.supervisor_email||'';
+  var recipients=[ownerEmail,supEmail].filter(Boolean);
+  if(!recipients.length){toast('אין כתובת מייל לתסקיר זה','warn');return;}
+  var sb=getSB();
+  if(!sb)return;
+  toast('מייצר PDF ושולח...','info');
+  var filePath = await generateAndUploadPDF(id);
+  try {
+    var r = await sb.functions.invoke('swift-service', {
+      body: {
+        to: recipients,
+        subject: 'תסקיר בדיקה הנדסי - '+(i.inspection_num||i.num||''),
+        body: (function(){
+          var pdfUrl = '';
+          if(filePath) { var pu=sb.storage.from('reports').getPublicUrl(filePath); if(pu.data) pdfUrl=pu.data.publicUrl; }
+          return 'שלום רב, מצ"ב קישור להורדת תסקיר בדיקה מספר '+(i.inspection_num||i.num||'')+'.' +
+            (pdfUrl ? '\n\nלהורדת התסקיר: '+pdfUrl : '') +
+            '\n\nתוצאה: '+i.result+'.\n\nבברכה, '+(i.inspector_name||i.inspector||DB.settings.name||'InspectPro');
+        })(),
+      }
+    });
+    if(r.error) throw r.error;
+    await sb.from('inspections').update({is_sent:true}).eq('id',id);
+    await loadFromSupabase(_user.id);
+    renderReports();
+    toast('תסקיר נשלח בהצלחה! 📧','success');
+  } catch(err) {
+    console.error('שגיאה:', err);
+    toast('שגיאה בשליחה','error');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// BILLING
+// ════════════════════════════════════════════════════════
+function renderBilling() {
+  var invoices = (DB.inspections||[]).filter(function(i){return i.amount>0;});
+  var total = invoices.reduce(function(a,i){return a+(i.amount||0);},0);
+  ge('billing-stats').innerHTML=[
+    ['סה"כ הכנסות','₪'+total.toLocaleString(),'green'],
+    ['תסקירים',''+invoices.length,'blue'],
+  ].map(function(x){return '<div class="stat"><div class="stat-label">'+x[0]+'</div><div class="stat-value" style="color:var(--'+x[2]+')">'+x[1]+'</div></div>';}).join('');
+  ge('billing-tbl').innerHTML=invoices.map(function(i){
+    var cl = DB.clients.find(function(c){return c.id===i.clientId||c.id===i.client_id;})||{};
+    return '<tr><td>'+esc(cl.name||'—')+'</td>'+
+      '<td style="font-size:12px">'+fmt(i.date||i.inspection_date)+'</td>'+
+      '<td style="font-weight:700;font-family:IBM Plex Mono,monospace;color:var(--green)">₪'+(i.amount||0).toLocaleString()+'</td>'+
+      '<td>'+pill('שולם','green')+'</td>'+
+      '<td>—</td></tr>';
+  }).join('');
+}
+function markPaid(id){}
+
+// ════════════════════════════════════════════════════════
+// CALENDAR
+// ════════════════════════════════════════════════════════
+function renderCalendar() {
+  const upcoming=DB.equipment.filter(e=>daysUntil(e.nextInsp)<=90).sort((a,b)=>daysUntil(a.nextInsp)-daysUntil(b.nextInsp));
+  ge('cal-tbl').innerHTML=upcoming.map(e=>{
+    const d=daysUntil(e.nextInsp);
+    return `<tr>
+      <td><span>${typeIcon(e.type)}</span> ${esc(e.brand)} ${esc(e.model)}</td>
+      <td>${esc(cln(e.clientId))}</td>
+      <td style="font-size:12px">${fmt(e.nextInsp)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:${d<0?'var(--red)':d<=14?'var(--orange)':'var(--text3)'}">${d>0?'+':''}${d}</td>
+      <td>${eqStatusPill(e)}</td>
+      <td><button class="btn btn-primary btn-xs" onclick="startInspFor(${e.id})">בדוק</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// MODELS
+// ════════════════════════════════════════════════════════
+const MODELS_DB = [
+  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:'10 בר',freq:'14 חודשים',std:'פקודת הבטיחות תש"ל-1970; IS 60'},
+  {id:'bl-002',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:'12 בר',freq:'14 חודשים',std:'ASME Section I; IS 60'},
+  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:'2.5T',freq:'12 חודשים',std:'ISO 3691-1; EN 16307-1'},
+  {id:'fl-002',type:'forklift',brand:'Linde',model:'E20 (387)',mwp:'2.0T',freq:'12 חודשים',std:'ISO 3691-1; EN 16307-1'},
+  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:'11 בר',freq:'14 חודשים',std:'IS 60; PED 2014/68/EU'},
+  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:'10T',freq:'12 חודשים',std:'ISO 4301; EN 13001'},
+];
+
+function renderModels(data) {
+  const list = data || MODELS_DB;
+  ge('models-grid').innerHTML = list.map(m=>`
+    <div class="card" style="cursor:pointer" onclick="viewModel('${m.id}')">
+      <div class="card-header"><span>${typeIcon(m.type)}</span><h3>${esc(m.brand)} ${esc(m.model)}</h3></div>
+      <div class="card-body" style="font-size:12px">
+        <div class="mb2">⚡ ${esc(m.mwp)}</div>
+        <div class="mb2">📅 תדירות: ${esc(m.freq)}</div>
+        <div style="font-size:10px;color:var(--text3)">${esc(m.std)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterModels(q) {
+  const lq=(q||'').toLowerCase();
+  const results=MODELS_DB.filter(m=>!lq||[m.brand,m.model,m.type,m.std].join(' ').toLowerCase().includes(lq));
+  ge('models-grid').innerHTML=results.map(m=>`
+    <div class="card" style="cursor:pointer" onclick="viewModel('${m.id}')">
+      <div class="card-header"><span>${typeIcon(m.type)}</span><h3>${esc(m.brand)} ${esc(m.model)}</h3></div>
+      <div class="card-body" style="font-size:12px"><div class="mb2">${esc(m.mwp)}</div><div>${esc(m.freq)}</div></div>
+    </div>`).join('');
+}
+
+function viewModel(id) {
+  const m = MODELS_DB.find(x=>x.id===id);
+  if(!m) return;
+  ge('mdl-title').textContent = `${m.brand} ${m.model}`;
+  ge('mdl-body').innerHTML = `
+    <div class="g2 mb3">
+      <div><div class="text-muted mb2">סוג מתקן</div><strong>${typeLabel(m.type)}</strong></div>
+      <div><div class="text-muted mb2">לחץ / עומס</div><strong>${m.mwp}</strong></div>
+      <div><div class="text-muted mb2">תדירות בדיקה</div><strong>${m.freq}</strong></div>
+      <div><div class="text-muted mb2">תקן</div><div style="font-size:12px">${m.std}</div></div>
+    </div>`;
+  openModal('viewModel');
+}
+
+// ════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// SETTINGS & SIGNATURE
+// ════════════════════════════════════════════════════════
+function renderSettings() {
+  const s = DB.settings;
+  if(ge('s-name')) ge('s-name').value=s.name||'';
+  if(ge('s-lic')) ge('s-lic').value=s.lic||'';
+  if(ge('s-phone')) ge('s-phone').value=s.phone||'';
+  if(ge('s-email')) ge('s-email').value=s.email||'';
+  const c = ge('settings-sig-canvas');
+  if(c && s.signature) {
+    const ctx = c.getContext('2d');
+    const img = new Image();
+    img.onload = () => { ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(img,0,0); };
+    img.src = s.signature;
+  }
+}
+
+function saveSettings() {
+  let sigData = '';
+  const c = ge('settings-sig-canvas');
+  if (c && !isCanvasBlank(c)) { sigData = c.toDataURL('image/png'); }
+  DB.settings = {
+    name: ge('s-name').value||'',
+    lic: ge('s-lic').value||'',
+    phone: ge('s-phone').value||'',
+    email: ge('s-email').value||'',
+    signature: sigData
+  };
+  ge('sb-user').textContent = DB.settings.name + ' – בודק מוסמך';
+  saveDB();
+  toast('הגדרות וחתימה נשמרו ✅','success');
+}
+
+// ════════════════════════════════════════════════════════
+// SUBMIT INSPECTION
+// ════════════════════════════════════════════════════════
+function setResult(r, btn) {
+  document.querySelectorAll('#result-btns button').forEach(b=>{ b.style.fontWeight=''; b.style.boxShadow=''; });
+  if(btn) { btn.style.fontWeight='900'; btn.style.boxShadow='0 0 0 3px rgba(26,86,219,.3)'; }
+  if(ge('i-result')) ge('i-result').value=r;
+  else { const inp=document.createElement('input'); inp.type='hidden'; inp.id='i-result'; inp.value=r; document.body.appendChild(inp); }
+}
+
+async function submitReport(doSend) {
+  var eId = (ge('i-equip')||{}).value || null;
+  var cId = (ge('i-client')||{}).value || null;
+  if(!cId){toast('בחר לקוח','error');return;}
+  if(!eId){toast('בחר מתקן','error');return;}
+
+  var sb = getSB();
+  var inspId = genUUID();
+  var num = (ge('i-num')||{}).value || 'IR-'+new Date().getFullYear()+'-'+Math.floor(Math.random()*900+100);
+  var result = ge('i-result') ? ge('i-result').value : 'approved';
+  var ownerEmail = (ge('i-owner-email')||{}).value||'';
+  var supEmail = (ge('i-supervisor-email')||{}).value||'';
+  var sendOnSave = doSend || (ge('i-send-on-save') && ge('i-send-on-save').checked);
+  var nextDate = (ge('i-valid-until')||{}).value||'';
+  var findingsText = (ge('i-findings')||{}).value||'';
+
+  var inspData = {
+    id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
+    inspection_num: num,
+    inspection_date: (ge('i-date')||{}).value || new Date().toISOString().split('T')[0],
+    inspection_type: (ge('i-insp-type')||{}).value||'periodic-14',
+    result: result,
+    inspector_name: (ge('i-inspector')||{}).value || (DB.settings&&DB.settings.name)||'',
+    score: parseInt((ge('i-score')||{}).value)||80,
+    findings: findingsText,
+    checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
+    amount: parseInt((ge('i-amount')||{}).value)||0,
+    owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
+  };
+
+  // 1. שמור תסקיר
+  var r = await sb.from('inspections').insert(inspData);
+  if(r.error){toast('שגיאה בשמירת תסקיר: '+r.error.message,'error');return;}
+
+  if(nextDate) await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id',eId);
+
+  // 2. שמור ליקויים עם ה-UUID הנכון של התסקיר
+  if(_currentDefects.length > 0) {
+    var defectsData = _currentDefects.map(function(d){
+      return { id:genUUID(), user_id:_user.id, client_id:cId, equipment_id:eId,
+               inspection_id:inspId, text:d.text, severity:d.severity, status:'open',
+               deadline:d.deadline||null, required_action:d.action||'',
+               doc_required:d.docRequired||false, repair_doc:d.repairDoc||'' };
+    });
+    var dr = await sb.from('defects').insert(defectsData);
+    if(dr.error) console.warn('שגיאה בשמירת ליקויים:', dr.error.message);
+  }
+
+  // 3. נקה מצב נוכחי
+  _currentDefects = [];
+  if(DB.currentInsp) DB.currentInsp.checklist = {};
+  if(ge('i-findings')) ge('i-findings').value = '';
+  clearSig();
+
+  await loadFromSupabase(_user.id);
+
+  if(sendOnSave && (ownerEmail||supEmail)){
+    markSent(inspId);
+  } else {
+    toast('תסקיר '+num+' נשמר! ✅','success');
+  }
+  navTo('reports');
 }
 
 async function generateAndUploadPDF(inspId) {
@@ -2858,6 +3129,7 @@ async function generateAndUploadPDF(inspId) {
 
   var inspNum = insp.inspection_num || insp.num || '';
 
+  // חתימה מהגדרות
   var sigImageHtml = '<br><br><br>';
   if(DB.settings && DB.settings.signature) {
     sigImageHtml = '<img src="' + DB.settings.signature + '" style="max-height:75px;display:block;margin:0 auto;" />';
@@ -2891,16 +3163,6 @@ async function generateAndUploadPDF(inspId) {
           '</tr>' +
           defRows +
         '</table>' +
-      '</div>';
-  }
-
-  var photosHtml = '';
-  if(insp.photos && insp.photos.length > 0) {
-    var imgs = insp.photos.map(function(p){ return '<img src="'+p+'" style="width:180px;height:180px;object-fit:cover;border-radius:8px;border:1px solid #dde3ef;" />'; }).join('');
-    photosHtml =
-      '<div style="margin-top:30px;page-break-inside:avoid;">' +
-        '<h4 style="border-bottom:2px solid #e2e8f0;padding-bottom:8px;color:#1e3a8a;margin-bottom:12px;font-size:15px;">📷 תיעוד חזותי</h4>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:15px;">'+imgs+'</div>' +
       '</div>';
   }
 
@@ -2959,13 +3221,12 @@ async function generateAndUploadPDF(inspId) {
         '</tr>' +
       '</table>' +
     '</div>' +
-    '<div style="margin-bottom:30px;page-break-inside:avoid;">' +
+    '<div style="margin-bottom:30px;">' +
       '<h4 style="border-bottom:2px solid #e2e8f0;padding-bottom:8px;color:#1e3a8a;margin-bottom:12px;font-size:15px;">📝 ממצאים והערות</h4>' +
       '<div style="background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #dde3ef;font-size:14px;line-height:1.6;">'+findingsHtml+'</div>' +
     '</div>' +
     defectsHtml +
-    photosHtml +
-    '<div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;page-break-inside:avoid;">' +
+    '<div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">' +
       '<div style="font-size:12px;color:#94a3b8;line-height:1.5;">מסמך זה הופק אלקטרונית.<br>InspectPro - מערכת לניהול בדיקות בטיחות.</div>' +
       '<div style="text-align:center;width:250px;">' +
         sigImageHtml +
@@ -2977,11 +3238,14 @@ async function generateAndUploadPDF(inspId) {
     '</div>' +
     '</div>';
 
+  // אלמנט נסתר אבל מרונדר (visibility:hidden לא מוריד מה-DOM)
   var tempContainer = document.createElement('div');
   tempContainer.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;visibility:hidden;';
   tempContainer.innerHTML = htmlContent;
   document.body.appendChild(tempContainer);
+
   var elementToPrint = tempContainer.querySelector('#pdf-wrapper');
+
   var opt = {
     margin: [10, 10, 10, 10],
     filename: inspNum + '.pdf',
@@ -2989,16 +3253,22 @@ async function generateAndUploadPDF(inspId) {
     html2canvas: { scale: 2, useCORS: true, letterRendering: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
+
   try {
+    // השהייה לאחר רינדור
     await new Promise(function(resolve){ setTimeout(resolve, 300); });
+
     var pdfBlob = await html2pdf().set(opt).from(elementToPrint).output('blob');
     document.body.removeChild(tempContainer);
+
     var blobUrl = URL.createObjectURL(pdfBlob);
     window.open(blobUrl, '_blank');
+
     var fileName = _user.id + '/' + inspNum + '_' + Date.now() + '.pdf';
     var sb = getSB();
-    var uploadRes = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
-    if(uploadRes.error) throw uploadRes.error;
+    var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
+    if(r.error) throw r.error;
+
     toast('PDF הופק ונשמר! 📄', 'success');
     return fileName;
   } catch(err) {
@@ -3022,6 +3292,18 @@ function isCanvasBlank(canvas) {
 // ════════════════════════════════════════════════════════
 // ADD EQUIPMENT MODAL
 // ════════════════════════════════════════════════════════
+function openAddEquipFromInsp() {
+  _editingEquipId = null;
+  openModal('addEquip');
+  setTimeout(function() {
+    var cId = ge('i-client') ? ge('i-client').value : '';
+    if(cId && ge('eq-client')) {
+      ge('eq-client').value = cId;
+      ge('eq-client').dispatchEvent(new Event('change'));
+    }
+  }, 50);
+}
+
 function populateEqClientSelect() {
   const sel = ge('eq-client');
   if(!sel) return;
@@ -3559,74 +3841,37 @@ function resetDB() { localStorage.removeItem(DB_KEY); location.reload(); }
 // ════════════════════════════════════════════════════════
 // POPULATE SELECTS ON INSPECTION PAGE
 // ════════════════════════════════════════════════════════
+function resetInspectionForm() {
+  _currentDefects = [];
+  renderCurrentDefects();
+  if(DB.currentInsp) DB.currentInsp = {checklist:{}};
+  ['i-client','i-equip','i-po','i-findings','i-score','i-amount',
+   'i-owner-email','i-supervisor-email'].forEach(function(id){ var el=ge(id); if(el) el.value=''; });
+  var today = new Date().toISOString().split('T')[0];
+  if(ge('i-date')) ge('i-date').value = today;
+  if(ge('i-valid-until')) ge('i-valid-until').value = '';
+  ['main-media-grid','critical-media-grid'].forEach(function(gid){
+    var g=ge(gid); if(g) g.querySelectorAll('.media-thumb').forEach(function(el){el.remove();});
+  });
+  clearSig();
+  showInspTab(0);
+  autoGenInspNum();
+  if(DB.settings && DB.settings.name && ge('i-inspector') && !ge('i-inspector').value)
+    ge('i-inspector').value = DB.settings.name;
+  document.querySelectorAll('#result-btns button').forEach(function(b){b.style.fontWeight='';b.style.boxShadow='';});
+  var iResult=ge('i-result'); if(iResult) iResult.value='';
+  var cc=ge('checklist-container');
+  if(cc) cc.innerHTML='<div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן לטעינת רשימת בדיקה</div>';
+  var piCard=ge('prev-insp-card'); if(piCard) piCard.style.display='none';
+}
+
 function populateInspSelects() {
   const cSel=ge('i-client');
   if(cSel) {
+    const prev=cSel.value;
     cSel.innerHTML='<option value="">בחר לקוח...</option>'+DB.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    if(prev) cSel.value=prev;
   }
-}
-
-function resetInspectionForm() {
-  // ניקוי ליקויים נוכחיים
-  _currentDefects = [];
-  renderCurrentDefects();
-
-  // ניקוי צ׳ק-ליסט
-  if(DB.currentInsp) DB.currentInsp = {checklist:{}};
-
-  // ניקוי שדות
-  var fields = ['i-client','i-equip','i-type','i-brand','i-model','i-serial',
-    'i-year','i-mwp','i-location','i-contact','i-phone','i-num',
-    'i-po','i-findings','i-score','i-amount','i-owner-email',
-    'i-supervisor-email','i-approved-press'];
-  fields.forEach(function(id){ var el=ge(id); if(el) el.value=''; });
-
-  // איפוס תאריכים
-  var today = new Date().toISOString().split('T')[0];
-  if(ge('i-date')) ge('i-date').value = today;
-  if(ge('i-next-date')) ge('i-next-date').value = '';
-  if(ge('i-valid-until')) ge('i-valid-until').value = '';
-
-  // ניקוי אתרים
-  var siteWrap = ge('i-client-sites');
-  if(siteWrap) siteWrap.classList.add('hidden');
-
-  // ניקוי מדיה
-  ['main-media-grid','critical-media-grid','notes-media-content'].forEach(function(gid){
-    var g = ge(gid);
-    if(g) g.querySelectorAll('.media-thumb').forEach(function(el){ el.remove(); });
-  });
-
-  // ניקוי transcript
-  if(ge('transcript-box')) ge('transcript-box').textContent = 'התמלול יופיע כאן אחרי ההקלטה...';
-  if(ge('i-findings')) ge('i-findings').value = '';
-
-  // ניקוי חתימה
-  clearSig();
-
-  // איפוס טאב לראשון
-  showInspTab(0);
-
-  // מילוי אוטומטי של מספר תסקיר ושם בודק
-  autoGenInspNum();
-  if(DB.settings && DB.settings.name && ge('i-inspector')) {
-    ge('i-inspector').value = DB.settings.name;
-  }
-
-  // איפוס תוצאה
-  document.querySelectorAll('#result-btns button').forEach(function(b){
-    b.style.fontWeight=''; b.style.boxShadow='';
-  });
-  var iResult = ge('i-result');
-  if(iResult) iResult.value = '';
-
-  // ניקוי צ׳ק-ליסט תצוגה
-  var cc = ge('checklist-container');
-  if(cc) cc.innerHTML = '<div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן בשלב הקודם לטעינת רשימת בדיקה</div>';
-
-  // הסתרת כרטיס תסקירים קודמים
-  var piCard = ge('prev-insp-card');
-  if(piCard) piCard.style.display = 'none';
 }
 
 // ════════════════════════════════════════════════════════
@@ -3678,38 +3923,40 @@ document.addEventListener('click', function(e) {
 // ════════════════════════════════════════════════════════
 // Init handled by onLoggedIn after auth
 window.addEventListener('DOMContentLoaded', function() {
-  // Enter key on password
-  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
-
-  // Date defaults
-  var today = new Date().toISOString().split('T')[0];
-  if (ge('i-date')) { ge('i-date').value = today; ge('i-date').addEventListener('change', calcNextInspDate); }
-  if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
-
-  checkMobile();
-
-  // Init Supabase session
   var sb = getSB();
-  if (!sb) { showLoginScreen(); return; }
 
-  sb.auth.getSession().then(function(res) {
-    if (res.data && res.data.session) {
-      onLoggedIn(res.data.session.user);
-    } else {
+  // uses global showLoginScreen()
+
+  async function checkSession() {
+    try {
+      if (!sb) { showLoginScreen(); return; }
+      var r = await sb.auth.getSession();
+      if (r.data && r.data.session) {
+        onLoggedIn(r.data.session.user);
+      } else {
+        showLoginScreen();
+      }
+    } catch(e) {
+      console.error('Init error:', e);
       showLoginScreen();
     }
-  }).catch(function() { showLoginScreen(); });
+    sb.auth.onAuthStateChange(function(event, session) {
+      if (event === 'SIGNED_IN' && session) {
+        if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
+        onLoggedIn(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        showLoginScreen();
+      }
+    });
+  }
 
-  sb.auth.onAuthStateChange(function(event, session) {
-    if (event === 'SIGNED_IN' && session) {
-      if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
-      onLoggedIn(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      showLoginScreen();
-    }
-  });
+  checkSession();
+  checkMobile();
+  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
+  var today = new Date().toISOString().split('T')[0];
+  if (ge('i-date')) { ge('i-date').value=today; ge('i-date').addEventListener('change', calcNextInspDate); }
+  if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
 });
-;
 </script>
 
 </body>
