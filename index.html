@@ -758,7 +758,9 @@ button{cursor:pointer;}
       <!-- Tab 4: Summary -->
       <div class="insp-tab-content" id="itab-4">
         <div class="card mb4">
-          <div class="card-header"><span>📊</span><h3>תוצאת הבדיקה</h3></div>
+          <div class="card-header"><span>📊</span><h3>תוצאת הבדיקה</h3>
+            <span id="summary-defects-count" style="font-size:12px;font-weight:700;"></span>
+          </div>
           <div class="card-body">
             <div class="flex gap3 mb4" id="result-btns">
               <button class="btn btn-success" style="flex:1;justify-content:center;padding:14px" onclick="setResult('approved',this)">✅ אושר לשימוש</button>
@@ -1785,7 +1787,7 @@ function renderPage(p) {
     models: renderModels,
     settings: renderSettings,
   };
-  if(p==='inspection') populateInspSelects();
+  if(p==='inspection') { populateInspSelects(); resetInspectionForm(); }
   if(p==='checklists') renderChecklistEditor();
   if(renderers[p]) renderers[p]();
   updateBadges();
@@ -1966,8 +1968,28 @@ function showInspTab(idx) {
   if(tc) tc.classList.add('active');
   const tb = document.querySelectorAll('.insp-tab')[idx];
   if(tb) tb.classList.add('active');
-  // אם עוברים לטאב הסיכום – ודא שהקנבס מקבל גודל נכון ומלא חתימה אוטומטית
+
+  // טאב 1: עדכן צ'ק-ליסט לפי הבחירה הנוכחית
+  if(idx === 1) {
+    updateChecklist();
+  }
+
+  // טאב 3: עדכן תצוגת ליקויים
+  if(idx === 3) {
+    renderCurrentDefects();
+  }
+
+  // טאב 4: חתימה אוטומטית + סיכום ליקויים
   if(idx === 4) {
+    // הצג סיכום ליקויים בטאב הסיכום
+    var summaryDefEl = ge('summary-defects-count');
+    if(summaryDefEl) {
+      summaryDefEl.textContent = _currentDefects.length > 0
+        ? _currentDefects.length + ' ליקויים רשומים'
+        : 'לא נרשמו ליקויים';
+      summaryDefEl.style.color = _currentDefects.length > 0 ? 'var(--red)' : 'var(--green)';
+    }
+
     setTimeout(function() {
       var c = ge('sig-canvas');
       if(c && (c.width === 0 || c.height === 0 || c.width === 300)) {
@@ -3540,10 +3562,71 @@ function resetDB() { localStorage.removeItem(DB_KEY); location.reload(); }
 function populateInspSelects() {
   const cSel=ge('i-client');
   if(cSel) {
-    const prev=cSel.value;
     cSel.innerHTML='<option value="">בחר לקוח...</option>'+DB.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-    if(prev) cSel.value=prev;
   }
+}
+
+function resetInspectionForm() {
+  // ניקוי ליקויים נוכחיים
+  _currentDefects = [];
+  renderCurrentDefects();
+
+  // ניקוי צ׳ק-ליסט
+  if(DB.currentInsp) DB.currentInsp = {checklist:{}};
+
+  // ניקוי שדות
+  var fields = ['i-client','i-equip','i-type','i-brand','i-model','i-serial',
+    'i-year','i-mwp','i-location','i-contact','i-phone','i-num',
+    'i-po','i-findings','i-score','i-amount','i-owner-email',
+    'i-supervisor-email','i-approved-press'];
+  fields.forEach(function(id){ var el=ge(id); if(el) el.value=''; });
+
+  // איפוס תאריכים
+  var today = new Date().toISOString().split('T')[0];
+  if(ge('i-date')) ge('i-date').value = today;
+  if(ge('i-next-date')) ge('i-next-date').value = '';
+  if(ge('i-valid-until')) ge('i-valid-until').value = '';
+
+  // ניקוי אתרים
+  var siteWrap = ge('i-client-sites');
+  if(siteWrap) siteWrap.classList.add('hidden');
+
+  // ניקוי מדיה
+  ['main-media-grid','critical-media-grid','notes-media-content'].forEach(function(gid){
+    var g = ge(gid);
+    if(g) g.querySelectorAll('.media-thumb').forEach(function(el){ el.remove(); });
+  });
+
+  // ניקוי transcript
+  if(ge('transcript-box')) ge('transcript-box').textContent = 'התמלול יופיע כאן אחרי ההקלטה...';
+  if(ge('i-findings')) ge('i-findings').value = '';
+
+  // ניקוי חתימה
+  clearSig();
+
+  // איפוס טאב לראשון
+  showInspTab(0);
+
+  // מילוי אוטומטי של מספר תסקיר ושם בודק
+  autoGenInspNum();
+  if(DB.settings && DB.settings.name && ge('i-inspector')) {
+    ge('i-inspector').value = DB.settings.name;
+  }
+
+  // איפוס תוצאה
+  document.querySelectorAll('#result-btns button').forEach(function(b){
+    b.style.fontWeight=''; b.style.boxShadow='';
+  });
+  var iResult = ge('i-result');
+  if(iResult) iResult.value = '';
+
+  // ניקוי צ׳ק-ליסט תצוגה
+  var cc = ge('checklist-container');
+  if(cc) cc.innerHTML = '<div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן בשלב הקודם לטעינת רשימת בדיקה</div>';
+
+  // הסתרת כרטיס תסקירים קודמים
+  var piCard = ge('prev-insp-card');
+  if(piCard) piCard.style.display = 'none';
 }
 
 // ════════════════════════════════════════════════════════
