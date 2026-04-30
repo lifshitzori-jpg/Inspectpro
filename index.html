@@ -2812,8 +2812,8 @@ function openReportView(id) {
     '</div></div>'+
     '<div class="modal-footer">'+
     '<button class="btn btn-secondary" id="rvcl">סגור</button>'+
-    '<button class="btn btn-primary" onclick="generateAndUploadPDF(''+inspId+'')">📄 הפק PDF</button>'+
-    '<button class="btn btn-success" onclick="markSent(''+inspId+'')">📧 שלח למייל</button>'+
+    '<button class="btn btn-primary" onclick="generateAndUploadPDF(\'' + inspId + '\')">📄 הפק PDF</button>'+
+    '<button class="btn btn-success" onclick="markSent(\'' + inspId + '\')">📧 שלח למייל</button>'+
     (eq?'<button class="btn btn-secondary" id="rvnw">+ חדש למתקן</button>':'')+
     '</div></div>';
   var close=function(){modal.remove();};
@@ -3595,42 +3595,38 @@ document.addEventListener('click', function(e) {
 // ════════════════════════════════════════════════════════
 // Init handled by onLoggedIn after auth
 window.addEventListener('DOMContentLoaded', function() {
-  var sb = getSB();
-
-  // uses global showLoginScreen()
-
-  async function checkSession() {
-    try {
-      if (!sb) { showLoginScreen(); return; }
-      var r = await sb.auth.getSession();
-      if (r.data && r.data.session) {
-        onLoggedIn(r.data.session.user);
-      } else {
-        showLoginScreen();
-      }
-    } catch(e) {
-      console.error('Init error:', e);
-      showLoginScreen();
-    }
-    sb.auth.onAuthStateChange(function(event, session) {
-      if (event === 'SIGNED_IN' && session) {
-        if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
-        onLoggedIn(session.user);
-      } else if (event === 'SIGNED_OUT') {
-        showLoginScreen();
-      }
-    });
-  }
-
   // Enter key on password
   if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
-    checkSession();
-  checkMobile();
-  if (ge('lb-pass')) ge('lb-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
+
+  // Date defaults
   var today = new Date().toISOString().split('T')[0];
-  if (ge('i-date')) { ge('i-date').value=today; ge('i-date').addEventListener('change', calcNextInspDate); }
+  if (ge('i-date')) { ge('i-date').value = today; ge('i-date').addEventListener('change', calcNextInspDate); }
   if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
+
+  checkMobile();
+
+  // Init Supabase session
+  var sb = getSB();
+  if (!sb) { showLoginScreen(); return; }
+
+  sb.auth.getSession().then(function(res) {
+    if (res.data && res.data.session) {
+      onLoggedIn(res.data.session.user);
+    } else {
+      showLoginScreen();
+    }
+  }).catch(function() { showLoginScreen(); });
+
+  sb.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN' && session) {
+      if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
+      onLoggedIn(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      showLoginScreen();
+    }
+  });
 });
+;
 </script>
 
 </body>
