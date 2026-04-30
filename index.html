@@ -1251,6 +1251,10 @@ function getSB() {
 // ════════════════════════════════════════════════
 // LOGIN FUNCTIONS
 // ════════════════════════════════════════════════
+// ── core helpers (needed by login functions) ──
+const ge = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
 function lbTab(t) {
   ge('lb-in').style.display = t === 'in' ? 'block' : 'none';
   ge('lb-up').style.display = t === 'up' ? 'block' : 'none';
@@ -1471,7 +1475,6 @@ function showLoginScreen() {
   if (app) app.style.display = 'none';
 }
 
-'use strict';
 
 // ════════════════════════════════════════════════════════
 // DATA LAYER
@@ -1513,8 +1516,7 @@ let DB = loadDB();
 // ════════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════════
-const ge = id => document.getElementById(id);
-const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
 const fmt = d => d ? new Date(d).toLocaleDateString('he-IL') : '—';
 const daysUntil = d => d ? Math.round((new Date(d)-new Date())/86400000) : 9999;
 const cln = id => (DB.clients.find(c=>String(c.id)===String(id))||{}).name||'—';
