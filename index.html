@@ -1466,7 +1466,9 @@ window.addEventListener('load', function() {
 
 function showLoginScreen() {
   var lw = ge('login-wrap');
-  if (lw) { lw.classList.add('active'); }
+  if (lw) { lw.style.display = 'flex'; lw.classList.remove('hidden'); }
+  var app = ge('app');
+  if (app) app.style.display = 'none';
 }
 
 'use strict';
@@ -1477,43 +1479,33 @@ function showLoginScreen() {
 const DB_KEY = 'inspectpro_v6';
 
 function seed() {
+  // נתוני ברירת מחדל ריקים – הנתונים האמיתיים נטענים מ-Supabase
   return {
     ver: 6,
-    settings: { name:'ר. ישראלי', lic:'IL-12345', phone:'054-0000000', email:'inspector@mail.com' },
-    clients: [
-      { id:1, name:'תנובה מרכז שיתופי', num:'CL-001', contact:'דני לוי', phone:'03-6138000', email:'dany@tnuva.co.il', address:'דרך השלום 34, רמת גן',
-        sites:['מחלבת עמק','מפעל רמת גן','מחסן מרכזי'] },
-      { id:2, name:'יוניליוור ישראל', num:'CL-002', contact:'שרה כהן', phone:'08-8600000', email:'sarah@unilever.co.il', address:'רח׳ התעשייה 5, אשדוד',
-        sites:['מפעל אשדוד'] },
-      { id:3, name:'נסטלה ישראל', num:'CL-003', contact:'עמית שרון', phone:'03-5334444', email:'amit@nestle.co.il', address:'רח׳ הצורן 5, אור יהודה',
-        sites:['מפעל אור יהודה','מחסן הצפון'] },
-    ],
-    equipment: [
-      { id:1, clientId:1, site:'מחלבת עמק', type:'boiler', brand:'Bosch', model:'Unimat UM-40', serial:'BU40-2019', year:2019, mwp:'10', mwp_unit:'bar', testPress:'13', hydro:'15', location:'חדר הדודים', lastInsp:'2024-05-15', nextInsp:'2025-07-15' },
-      { id:2, clientId:2, site:'מפעל אשדוד', type:'forklift', brand:'Toyota', model:'8FBM25', serial:'TY25-2020', year:2020, mwp:'2.5', mwp_unit:'ton', testPress:'', hydro:'', location:'מחסן ראשי', lastInsp:'2024-10-01', nextInsp:'2025-10-01' },
-      { id:3, clientId:3, site:'מפעל אור יהודה', type:'boiler', brand:'Cleaver Brooks', model:'CB-200', serial:'CB200-2018', year:2018, mwp:'12', mwp_unit:'bar', testPress:'15.6', hydro:'18', location:'מחלקת בישול', lastInsp:'2024-03-10', nextInsp:'2025-05-10' },
-      { id:4, clientId:1, site:'מפעל רמת גן', type:'air-collector', brand:'Atlas Copco', model:'GA 37', serial:'AC37-2021', year:2021, mwp:'11', mwp_unit:'bar', testPress:'14.3', hydro:'16.5', location:'חדר מדחסים', lastInsp:'2023-11-20', nextInsp:'2025-01-20' },
-      { id:5, clientId:1, site:'מחלבת עמק', type:'crane-bridge', brand:'Demag', model:'DRS-10', serial:'DM10-2017', year:2017, mwp:'10', mwp_unit:'ton', testPress:'', hydro:'', location:'אולם ייצור', lastInsp:'2024-08-10', nextInsp:'2025-08-10' },
-    ],
-    inspections: [
-      { id:1, equipId:1, clientId:1, num:'IR-2024-015', date:'2024-05-15', type:'periodic-14', result:'approved', inspector:'ר. ישראלי', mwp:'10 בר', nextDate:'2025-07-15', findings:'הדוד תקין. נמצאה שכבת אבנית קלה.', score:92, defects:1, sent:true, amount:2800 },
-      { id:2, equipId:3, clientId:3, num:'IR-2024-008', date:'2024-03-10', type:'periodic-14', result:'conditional', inspector:'ר. ישראלי', mwp:'12 בר', nextDate:'2025-05-10', findings:'נמצא קורוזיה בגוף הדוד.', score:71, defects:2, sent:true, amount:3200 },
-    ],
-    defects: [
-      { id:1, inspId:1, equipId:1, clientId:1, text:'שכבת אבנית בצינורות עשן', severity:'low', status:'open', deadline:'2025-08-01', action:'ניקוי צינורות', docRequired:false, repairDoc:'', createdAt:'2024-05-15' },
-      { id:2, inspId:2, equipId:3, clientId:3, text:'קורוזיה בגוף הדוד', severity:'critical', status:'open', deadline:'2025-04-10', action:'החלפת לוחות', docRequired:true, repairDoc:'', createdAt:'2024-03-10' },
-    ],
-    invoices: [
-      { id:1, clientId:1, inspId:1, amount:2800, status:'paid', date:'2024-05-20', paidDate:'2024-06-01' },
-      { id:2, clientId:3, inspId:2, amount:3200, status:'pending', date:'2024-03-15', paidDate:'' },
-    ],
-    nextId: { client:4, equip:6, insp:3, defect:3, invoice:3 },
-    // Current inspection state
+    settings: { name:'', lic:'', phone:'', email:'', signature:'' },
+    clients: [],
+    equipment: [],
+    inspections: [],
+    defects: [],
+    invoices: [],
+    nextId: { client:1, equip:1, insp:1, defect:1, invoice:1 },
     currentInsp: null,
   };
 }
 
-function loadDB() { try { const r=localStorage.getItem(DB_KEY); if(r) return JSON.parse(r); } catch(e){} return seed(); }
+function loadDB() {
+  try {
+    var r = localStorage.getItem(DB_KEY);
+    if(r) {
+      var parsed = JSON.parse(r);
+      // אם יש נתוני דמו ישנים (לקוחות עם ID מספרי קטן) – נמחק ונתחיל רענן
+      var hasDemo = parsed.clients && parsed.clients.some(function(c){ return typeof c.id === 'number'; });
+      if(hasDemo) { localStorage.removeItem(DB_KEY); return seed(); }
+      return parsed;
+    }
+  } catch(e) {}
+  return seed();
+}
 function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 function nid(t) { const id=DB.nextId[t]; DB.nextId[t]++; saveDB(); return id; }
 let DB = loadDB();
@@ -3892,8 +3884,10 @@ window.addEventListener('DOMContentLoaded', function() {
   var sb = getSB();
 
   function showLoginScreen() {
-    document.getElementById('login-wrap').style.display='flex';
-    document.getElementById('app').style.display='none';
+    var lw = document.getElementById('login-wrap');
+    if(lw) { lw.style.display='flex'; lw.classList.remove('hidden'); }
+    var app = document.getElementById('app');
+    if(app) app.style.display='none';
   }
 
   async function checkSession() {
