@@ -1509,7 +1509,6 @@ function loadDB() {
   } catch(e) {}
   return seed();
 }
-function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 function nid(t) { const id=DB.nextId[t]; DB.nextId[t]++; saveDB(); return id; }
 let DB = loadDB();
 
@@ -3884,12 +3883,7 @@ document.addEventListener('click', function(e) {
 window.addEventListener('DOMContentLoaded', function() {
   var sb = getSB();
 
-  function showLoginScreen() {
-    var lw = document.getElementById('login-wrap');
-    if(lw) { lw.style.display='flex'; lw.classList.remove('hidden'); }
-    var app = document.getElementById('app');
-    if(app) app.style.display='none';
-  }
+  // uses global showLoginScreen()
 
   async function checkSession() {
     try {
