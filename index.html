@@ -559,6 +559,12 @@ button{cursor:pointer;}
                         <button class="unit-btn" onclick="setUnit('mwp','ton',this)">טון</button>
                         <button class="unit-btn" onclick="setUnit('mwp','kg',this)">ק"ג</button>
                       </div>
+                      <select id="i-mwp-unit" style="display:none">
+                        <option value="bar">בר</option>
+                        <option value="psi">PSI</option>
+                        <option value="ton">טון</option>
+                        <option value="kg">ק"ג</option>
+                      </select>
                     </div>
                   </div>
                   <div class="form-group">
@@ -568,7 +574,11 @@ button{cursor:pointer;}
                       <div id="test-units-label" style="font-size:12px;color:var(--text3);align-self:center">בר</div>
                     </div>
                   </div>
-                  <div class="form-group" id="hydro-section">
+                  <div class="form-group">
+                    <label>תקן ישימתי</label>
+                    <input type="text" id="i-standard" dir="ltr" placeholder="IS 60, EN 280...">
+                </div>
+                <div class="form-group" id="hydro-section">
                     <label>לחץ הידרוסטטי</label>
                     <div class="flex gap2">
                       <input type="number" id="i-hydro" dir="ltr" placeholder="0" style="flex:1">
@@ -3050,82 +3060,85 @@ async function uploadPhotoToStorage(base64Data, inspNum, idx) {
 }
 
 const MODELS_DB = [
-  // ── דודי קיטור ──
-  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:10,mwp_unit:'bar',test_press:13,capacity:'400L',std:'IS 60; ASME I',freq:14},
-  {id:'bl-002',type:'boiler',brand:'Bosch',model:'Unimat UM-80',mwp:10,mwp_unit:'bar',test_press:13,capacity:'800L',std:'IS 60; ASME I',freq:14},
-  {id:'bl-003',type:'boiler',brand:'Bosch',model:'Unimat UM-160',mwp:10,mwp_unit:'bar',test_press:13,capacity:'1600L',std:'IS 60; ASME I',freq:14},
-  {id:'bl-004',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:12,mwp_unit:'bar',test_press:15.6,capacity:'2000L',std:'IS 60; ASME I',freq:14},
-  {id:'bl-005',type:'boiler',brand:'Cleaver Brooks',model:'FLX-750',mwp:10,mwp_unit:'bar',test_press:13,capacity:'1200L',std:'IS 60; ASME I',freq:14},
-  {id:'bl-006',type:'boiler',brand:'Fulton',model:'FB-075',mwp:10,mwp_unit:'bar',test_press:13,capacity:'750L',std:'IS 60; EN 12953',freq:14},
-  {id:'bl-007',type:'boiler',brand:'Fulton',model:'FB-150',mwp:10,mwp_unit:'bar',test_press:13,capacity:'1500L',std:'IS 60; EN 12953',freq:14},
-  {id:'bl-008',type:'boiler',brand:'Ferroli',model:'PREXTHERM RSW 300',mwp:6,mwp_unit:'bar',test_press:7.8,capacity:'300L',std:'IS 60; EN 12953',freq:14},
-  {id:'bl-009',type:'boiler',brand:'Buderus',model:'Logano GE615',mwp:6,mwp_unit:'bar',test_press:7.8,capacity:'450L',std:'IS 60; EN 303',freq:14},
-  {id:'bl-010',type:'boiler',brand:'Palam',model:'PAL-500',mwp:8,mwp_unit:'bar',test_press:10.4,capacity:'500L',std:'IS 60',freq:14},
-  {id:'bl-011',type:'boiler',brand:'Palam',model:'PAL-1000',mwp:8,mwp_unit:'bar',test_press:10.4,capacity:'1000L',std:'IS 60',freq:14},
-  {id:'bl-012',type:'boiler',brand:'Viessmann',model:'Vitoplex 200 SX2A',mwp:6,mwp_unit:'bar',test_press:7.8,capacity:'800L',std:'IS 60; EN 12953',freq:14},
-  // ── קולטי אוויר ──
-  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'500L',std:'IS 60; PED 2014/68/EU',freq:26},
-  {id:'ac-002',type:'air-collector',brand:'Atlas Copco',model:'GA 55',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'750L',std:'IS 60; PED 2014/68/EU',freq:26},
-  {id:'ac-003',type:'air-collector',brand:'Atlas Copco',model:'GA 90',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'1000L',std:'IS 60; PED 2014/68/EU',freq:26},
-  {id:'ac-004',type:'air-collector',brand:'Atlas Copco',model:'GA 160',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'2000L',std:'IS 60; PED 2014/68/EU',freq:26},
-  {id:'ac-005',type:'air-collector',brand:'Kaeser',model:'SX-8',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'90L',std:'IS 60; ASME VIII',freq:26},
-  {id:'ac-006',type:'air-collector',brand:'Kaeser',model:'SM-11',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'270L',std:'IS 60; ASME VIII',freq:26},
-  {id:'ac-007',type:'air-collector',brand:'Kaeser',model:'BSD 75',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'750L',std:'IS 60; ASME VIII',freq:26},
-  {id:'ac-008',type:'air-collector',brand:'Ingersoll Rand',model:'UP5-22',mwp:10,mwp_unit:'bar',test_press:13,capacity:'270L',std:'IS 60; ASME VIII',freq:26},
-  {id:'ac-009',type:'air-collector',brand:'Ingersoll Rand',model:'R-Series 37kW',mwp:10,mwp_unit:'bar',test_press:13,capacity:'500L',std:'IS 60; ASME VIII',freq:26},
-  {id:'ac-010',type:'air-collector',brand:'Gardner Denver',model:'ELF 22',mwp:11,mwp_unit:'bar',test_press:14.3,capacity:'270L',std:'IS 60; PED 2014/68/EU',freq:26},
-  // ── מלגזות ──
-  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-002',type:'forklift',brand:'Toyota',model:'8FBM15',mwp:1.5,mwp_unit:'ton',test_press:1.65,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-003',type:'forklift',brand:'Toyota',model:'7FBH30',mwp:3.0,mwp_unit:'ton',test_press:3.3,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-004',type:'forklift',brand:'Toyota',model:'Traigo 48 8FBE16T',mwp:1.6,mwp_unit:'ton',test_press:1.76,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-005',type:'forklift',brand:'Linde',model:'E20 387',mwp:2.0,mwp_unit:'ton',test_press:2.2,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-006',type:'forklift',brand:'Linde',model:'E30 386',mwp:3.0,mwp_unit:'ton',test_press:3.3,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-007',type:'forklift',brand:'Linde',model:'H25 393',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-008',type:'forklift',brand:'Jungheinrich',model:'EFG 220',mwp:2.0,mwp_unit:'ton',test_press:2.2,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-009',type:'forklift',brand:'Jungheinrich',model:'EFG 425k',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-010',type:'forklift',brand:'Hyster',model:'H2.5FT',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; ASME B56.1',freq:14},
-  {id:'fl-011',type:'forklift',brand:'Hyster',model:'H3.5FT',mwp:3.5,mwp_unit:'ton',test_press:3.85,capacity:'',std:'ISO 3691-1; ASME B56.1',freq:14},
-  {id:'fl-012',type:'forklift',brand:'Crown',model:'FC 5200',mwp:2.0,mwp_unit:'ton',test_press:2.2,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-013',type:'forklift',brand:'Komatsu',model:'FG25T-16',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  {id:'fl-014',type:'forklift',brand:'Yale',model:'GLP25VX',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; ASME B56.1',freq:14},
-  {id:'fl-015',type:'forklift',brand:'Still',model:'RX70-25',mwp:2.5,mwp_unit:'ton',test_press:2.75,capacity:'',std:'ISO 3691-1; EN 16307-1',freq:14},
-  // ── במות הרמה ──
-  {id:'ap-001',type:'aerial-platform',brand:'Genie',model:'GS-2032',mwp:227,mwp_unit:'kg',test_press:249,capacity:'6m',std:'EN 280; ANSI A92.6',freq:6},
-  {id:'ap-002',type:'aerial-platform',brand:'Genie',model:'GS-3246',mwp:227,mwp_unit:'kg',test_press:249,capacity:'10m',std:'EN 280; ANSI A92.6',freq:6},
-  {id:'ap-003',type:'aerial-platform',brand:'Genie',model:'GS-4047',mwp:227,mwp_unit:'kg',test_press:249,capacity:'12m',std:'EN 280; ANSI A92.6',freq:6},
-  {id:'ap-004',type:'aerial-platform',brand:'Genie',model:'Z-45/25J',mwp:227,mwp_unit:'kg',test_press:249,capacity:'14m',std:'EN 280; ANSI A92.5',freq:6},
-  {id:'ap-005',type:'aerial-platform',brand:'Genie',model:'Z-60/37FE',mwp:227,mwp_unit:'kg',test_press:249,capacity:'18m',std:'EN 280; ANSI A92.5',freq:6},
-  {id:'ap-006',type:'aerial-platform',brand:'JLG',model:'1930ES',mwp:227,mwp_unit:'kg',test_press:249,capacity:'6m',std:'EN 280; ANSI A92.6',freq:6},
-  {id:'ap-007',type:'aerial-platform',brand:'JLG',model:'4069LE',mwp:227,mwp_unit:'kg',test_press:249,capacity:'14m',std:'EN 280; ANSI A92.6',freq:6},
-  {id:'ap-008',type:'aerial-platform',brand:'JLG',model:'860SJ',mwp:227,mwp_unit:'kg',test_press:249,capacity:'26m',std:'EN 280; ANSI A92.5',freq:6},
-  {id:'ap-009',type:'aerial-platform',brand:'Haulotte',model:'Compact 10N',mwp:200,mwp_unit:'kg',test_press:220,capacity:'10m',std:'EN 280',freq:6},
-  {id:'ap-010',type:'aerial-platform',brand:'Haulotte',model:'HA16PX',mwp:230,mwp_unit:'kg',test_press:253,capacity:'16m',std:'EN 280',freq:6},
-  {id:'ap-011',type:'aerial-platform',brand:'Manitou',model:'120 AETJL',mwp:200,mwp_unit:'kg',test_press:220,capacity:'12m',std:'EN 280',freq:6},
-  {id:'ap-012',type:'aerial-platform',brand:'Niftylift',model:'HR17',mwp:200,mwp_unit:'kg',test_press:220,capacity:'17m',std:'EN 280',freq:6},
-  // ── עגורני גשר ──
-  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:10,mwp_unit:'ton',test_press:11,capacity:'',std:'EN 15011; ISO 4301',freq:14},
-  {id:'cb-002',type:'crane-bridge',brand:'Demag',model:'EKDR-20',mwp:20,mwp_unit:'ton',test_press:22,capacity:'',std:'EN 15011; ISO 4301',freq:14},
-  {id:'cb-003',type:'crane-bridge',brand:'Konecranes',model:'CXT 5',mwp:5,mwp_unit:'ton',test_press:5.5,capacity:'',std:'EN 15011; ISO 4301',freq:14},
-  {id:'cb-004',type:'crane-bridge',brand:'Konecranes',model:'CXT 16',mwp:16,mwp_unit:'ton',test_press:17.6,capacity:'',std:'EN 15011; ISO 4301',freq:14},
-  // ── שרשראות הרמה ──
-  {id:'ch-001',type:'chain',brand:'Crosby',model:'Grade 80 8mm',mwp:2,mwp_unit:'ton',test_press:4,capacity:'',std:'EN 818-2; ASME B30.9',freq:6},
-  {id:'ch-002',type:'chain',brand:'Crosby',model:'Grade 80 10mm',mwp:3.15,mwp_unit:'ton',test_press:6.3,capacity:'',std:'EN 818-2; ASME B30.9',freq:6},
-  {id:'ch-003',type:'chain',brand:'Crosby',model:'Grade 80 13mm',mwp:5.3,mwp_unit:'ton',test_press:10.6,capacity:'',std:'EN 818-2; ASME B30.9',freq:6},
-  {id:'ch-004',type:'chain',brand:'Gunnebo',model:'G80 8mm',mwp:2,mwp_unit:'ton',test_press:4,capacity:'',std:'EN 818-2',freq:6},
-  {id:'ch-005',type:'chain',brand:'Pewag',model:'Windhoist G100 10mm',mwp:4,mwp_unit:'ton',test_press:8,capacity:'',std:'EN 818-2; Grade 100',freq:6},
-  {id:'ch-006',type:'chain',brand:'RUD',model:'ICE Chain 8mm',mwp:2,mwp_unit:'ton',test_press:4,capacity:'',std:'EN 818-2',freq:6},
-  // ── רצועות טקסטיל ──
-  {id:'st-001',type:'sling-textile',brand:'Spanset',model:'Eson 1T',mwp:1,mwp_unit:'ton',test_press:2,capacity:'',std:'EN 1492-1',freq:6},
-  {id:'st-002',type:'sling-textile',brand:'Spanset',model:'Eson 2T',mwp:2,mwp_unit:'ton',test_press:4,capacity:'',std:'EN 1492-1',freq:6},
-  {id:'st-003',type:'sling-textile',brand:'Spanset',model:'Eson 5T',mwp:5,mwp_unit:'ton',test_press:10,capacity:'',std:'EN 1492-1',freq:6},
-  {id:'st-004',type:'sling-textile',brand:'Crosby',model:'Web Sling 3T',mwp:3,mwp_unit:'ton',test_press:6,capacity:'',std:'EN 1492-1; ASME B30.9',freq:6},
-  {id:'st-005',type:'sling-wire',brand:'Casar',model:'Superplast 14mm',mwp:2.5,mwp_unit:'ton',test_press:5,capacity:'',std:'EN 12385-4',freq:6},
-  {id:'st-006',type:'sling-wire',brand:'Casar',model:'Powerplast 20mm',mwp:6.7,mwp_unit:'ton',test_press:13.4,capacity:'',std:'EN 12385-4',freq:6},
-  // ── אונקלים ──
-  {id:'hk-001',type:'hook',brand:'Crosby',model:'G-4163 3.25T',mwp:3.25,mwp_unit:'ton',test_press:6.5,capacity:'',std:'ASME B30.10; EN 1677',freq:6},
-  {id:'hk-002',type:'hook',brand:'Gunnebo',model:'SLX 5T',mwp:5,mwp_unit:'ton',test_press:10,capacity:'',std:'EN 1677-1',freq:6},
-  {id:'hk-003',type:'hook',brand:'Pewag',model:'Safety Hook 2T',mwp:2,mwp_unit:'ton',test_press:4,capacity:'',std:'EN 1677-1',freq:6},
+  // ── דודי קיטור ──────────────────────────────────────
+  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; EN 12953',freq:14},
+  {id:'bl-002',type:'boiler',brand:'Bosch',model:'Unimat UM-80',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; EN 12953',freq:14},
+  {id:'bl-003',type:'boiler',brand:'Bosch',model:'Unimat UM-160',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; EN 12953',freq:14},
+  {id:'bl-004',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:12,mwp_unit:'bar',test_press:18,std:'ASME Section I; IS 60',freq:14},
+  {id:'bl-005',type:'boiler',brand:'Cleaver Brooks',model:'FLX-750',mwp:10,mwp_unit:'bar',test_press:15,std:'ASME Section I; IS 60',freq:14},
+  {id:'bl-006',type:'boiler',brand:'Fulton',model:'FB-075',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; EN 12953',freq:14},
+  {id:'bl-007',type:'boiler',brand:'Fulton',model:'ICS-200',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; ASME I',freq:14},
+  {id:'bl-008',type:'boiler',brand:'Gadot',model:'G-500',mwp:8,mwp_unit:'bar',test_press:12,std:'IS 60',freq:14},
+  {id:'bl-009',type:'boiler',brand:'Gadot',model:'G-1000',mwp:8,mwp_unit:'bar',test_press:12,std:'IS 60',freq:14},
+  {id:'bl-010',type:'boiler',brand:'Palam',model:'PAL-500',mwp:8,mwp_unit:'bar',test_press:12,std:'IS 60',freq:14},
+  {id:'bl-011',type:'boiler',brand:'Palam',model:'PAL-1000',mwp:8,mwp_unit:'bar',test_press:12,std:'IS 60',freq:14},
+  {id:'bl-012',type:'boiler',brand:'Ferroli',model:'PREXTHERM RSW 300',mwp:6,mwp_unit:'bar',test_press:9,std:'IS 60; EN 12953',freq:14},
+  // ── קולטי אוויר ─────────────────────────────────────
+  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:11,mwp_unit:'bar',test_press:16.5,std:'IS 60; PED 2014/68/EU',freq:26},
+  {id:'ac-002',type:'air-collector',brand:'Atlas Copco',model:'GA 55',mwp:11,mwp_unit:'bar',test_press:16.5,std:'IS 60; PED 2014/68/EU',freq:26},
+  {id:'ac-003',type:'air-collector',brand:'Atlas Copco',model:'GA 90',mwp:11,mwp_unit:'bar',test_press:16.5,std:'IS 60; PED 2014/68/EU',freq:26},
+  {id:'ac-004',type:'air-collector',brand:'Kaeser',model:'SX-8',mwp:11,mwp_unit:'bar',test_press:16.5,std:'IS 60; ASME VIII',freq:26},
+  {id:'ac-005',type:'air-collector',brand:'Kaeser',model:'BSD 75',mwp:11,mwp_unit:'bar',test_press:16.5,std:'IS 60; ASME VIII',freq:26},
+  {id:'ac-006',type:'air-collector',brand:'Ingersoll Rand',model:'UP5-22',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; ASME VIII',freq:26},
+  {id:'ac-007',type:'air-collector',brand:'Ingersoll Rand',model:'R-Series 37kW',mwp:10,mwp_unit:'bar',test_press:15,std:'IS 60; ASME VIII',freq:26},
+  {id:'ac-008',type:'air-collector',brand:'Gardner Denver',model:'ELF 22',mwp:11,mwp_unit:'bar',test_press:16.5,std:'IS 60; PED 2014/68/EU',freq:26},
+  // ── מלגזות ───────────────────────────────────────────
+  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:2.5,mwp_unit:'ton',test_press:2.75,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-002',type:'forklift',brand:'Toyota',model:'8FBM15',mwp:1.5,mwp_unit:'ton',test_press:1.65,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-003',type:'forklift',brand:'Toyota',model:'7FBH30',mwp:3.0,mwp_unit:'ton',test_press:3.3,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-004',type:'forklift',brand:'Toyota',model:'8FBE16T',mwp:1.6,mwp_unit:'ton',test_press:1.76,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-005',type:'forklift',brand:'Linde',model:'E20 387',mwp:2.0,mwp_unit:'ton',test_press:2.2,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-006',type:'forklift',brand:'Linde',model:'E30 386',mwp:3.0,mwp_unit:'ton',test_press:3.3,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-007',type:'forklift',brand:'Linde',model:'H25 393',mwp:2.5,mwp_unit:'ton',test_press:2.75,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-008',type:'forklift',brand:'Jungheinrich',model:'EFG 220',mwp:2.0,mwp_unit:'ton',test_press:2.2,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-009',type:'forklift',brand:'Jungheinrich',model:'EFG 425k',mwp:2.5,mwp_unit:'ton',test_press:2.75,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-010',type:'forklift',brand:'Hyster',model:'H2.5FT',mwp:2.5,mwp_unit:'ton',test_press:2.75,std:'ISO 3691-1; ASME B56.1',freq:14},
+  {id:'fl-011',type:'forklift',brand:'Hyster',model:'H3.5FT',mwp:3.5,mwp_unit:'ton',test_press:3.85,std:'ISO 3691-1; ASME B56.1',freq:14},
+  {id:'fl-012',type:'forklift',brand:'Crown',model:'FC 5200',mwp:2.0,mwp_unit:'ton',test_press:2.2,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-013',type:'forklift',brand:'Crown',model:'RC 5500',mwp:2.3,mwp_unit:'ton',test_press:2.53,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-014',type:'forklift',brand:'Komatsu',model:'FG25T-16',mwp:2.5,mwp_unit:'ton',test_press:2.75,std:'ISO 3691-1; EN 16307-1',freq:14},
+  {id:'fl-015',type:'forklift',brand:'Still',model:'RX70-25',mwp:2.5,mwp_unit:'ton',test_press:2.75,std:'ISO 3691-1; EN 16307-1',freq:14},
+  // ── במות הרמה ─────────────────────────────────────────
+  {id:'ap-001',type:'aerial-platform',brand:'Genie',model:'GS-2032',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.6',freq:6},
+  {id:'ap-002',type:'aerial-platform',brand:'Genie',model:'GS-3246',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.6',freq:6},
+  {id:'ap-003',type:'aerial-platform',brand:'Genie',model:'GS-4047',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.6',freq:6},
+  {id:'ap-004',type:'aerial-platform',brand:'Genie',model:'Z-45/25J',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.5',freq:6},
+  {id:'ap-005',type:'aerial-platform',brand:'Genie',model:'Z-60/37FE',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.5',freq:6},
+  {id:'ap-006',type:'aerial-platform',brand:'JLG',model:'1930ES',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.6',freq:6},
+  {id:'ap-007',type:'aerial-platform',brand:'JLG',model:'3369LE',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.6',freq:6},
+  {id:'ap-008',type:'aerial-platform',brand:'JLG',model:'4069LE',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.6',freq:6},
+  {id:'ap-009',type:'aerial-platform',brand:'JLG',model:'860SJ',mwp:227,mwp_unit:'kg',test_press:250,std:'EN 280; ANSI A92.5',freq:6},
+  {id:'ap-010',type:'aerial-platform',brand:'Haulotte',model:'Compact 10N',mwp:200,mwp_unit:'kg',test_press:220,std:'EN 280',freq:6},
+  {id:'ap-011',type:'aerial-platform',brand:'Haulotte',model:'HA16PX',mwp:230,mwp_unit:'kg',test_press:253,std:'EN 280',freq:6},
+  {id:'ap-012',type:'aerial-platform',brand:'Haulotte',model:'HT28RTJ',mwp:230,mwp_unit:'kg',test_press:253,std:'EN 280',freq:6},
+  // ── עגורני גשר ────────────────────────────────────────
+  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:10,mwp_unit:'ton',test_press:11,std:'EN 15011; ISO 4301',freq:14},
+  {id:'cb-002',type:'crane-bridge',brand:'Demag',model:'EKDR-20',mwp:20,mwp_unit:'ton',test_press:22,std:'EN 15011; ISO 4301',freq:14},
+  {id:'cb-003',type:'crane-bridge',brand:'Konecranes',model:'CXT 5',mwp:5,mwp_unit:'ton',test_press:5.5,std:'EN 15011; ISO 4301',freq:14},
+  {id:'cb-004',type:'crane-bridge',brand:'Konecranes',model:'CXT 16',mwp:16,mwp_unit:'ton',test_press:17.6,std:'EN 15011; ISO 4301',freq:14},
+  // ── שרשראות הרמה ─────────────────────────────────────
+  {id:'ch-001',type:'chain',brand:'Crosby',model:'Grade 80 8mm',mwp:2,mwp_unit:'ton',test_press:4,std:'EN 818-2; ASME B30.9',freq:6},
+  {id:'ch-002',type:'chain',brand:'Crosby',model:'Grade 80 10mm',mwp:3.15,mwp_unit:'ton',test_press:6.3,std:'EN 818-2; ASME B30.9',freq:6},
+  {id:'ch-003',type:'chain',brand:'Crosby',model:'Grade 80 13mm',mwp:5.3,mwp_unit:'ton',test_press:10.6,std:'EN 818-2; ASME B30.9',freq:6},
+  {id:'ch-004',type:'chain',brand:'Gunnebo',model:'G80 8mm',mwp:2,mwp_unit:'ton',test_press:4,std:'EN 818-2',freq:6},
+  {id:'ch-005',type:'chain',brand:'Gunnebo',model:'G80 10mm',mwp:3.15,mwp_unit:'ton',test_press:6.3,std:'EN 818-2',freq:6},
+  {id:'ch-006',type:'chain',brand:'Pewag',model:'Windhoist G100 10mm',mwp:4,mwp_unit:'ton',test_press:8,std:'EN 818-2; Grade 100',freq:6},
+  {id:'ch-007',type:'chain',brand:'RUD',model:'ICE Chain 8mm',mwp:2,mwp_unit:'ton',test_press:4,std:'EN 818-2',freq:6},
+  // ── רצועות טקסטיל ────────────────────────────────────
+  {id:'st-001',type:'sling-textile',brand:'Spanset',model:'Eson 1T',mwp:1,mwp_unit:'ton',test_press:2,std:'EN 1492-1',freq:6},
+  {id:'st-002',type:'sling-textile',brand:'Spanset',model:'Eson 2T',mwp:2,mwp_unit:'ton',test_press:4,std:'EN 1492-1',freq:6},
+  {id:'st-003',type:'sling-textile',brand:'Spanset',model:'Eson 5T',mwp:5,mwp_unit:'ton',test_press:10,std:'EN 1492-1',freq:6},
+  {id:'st-004',type:'sling-textile',brand:'Crosby',model:'Web Sling 3T',mwp:3,mwp_unit:'ton',test_press:6,std:'EN 1492-1; ASME B30.9',freq:6},
+  {id:'st-005',type:'sling-wire',brand:'Casar',model:'Superplast 14mm',mwp:2.5,mwp_unit:'ton',test_press:5,std:'EN 12385-4',freq:6},
+  {id:'st-006',type:'sling-wire',brand:'Casar',model:'Powerplast 20mm',mwp:6.7,mwp_unit:'ton',test_press:13.4,std:'EN 12385-4',freq:6},
+  // ── אונקלים ──────────────────────────────────────────
+  {id:'hk-001',type:'hook',brand:'Crosby',model:'G-4163 3.25T',mwp:3.25,mwp_unit:'ton',test_press:6.5,std:'ASME B30.10; EN 1677',freq:6},
+  {id:'hk-002',type:'hook',brand:'Gunnebo',model:'SLX 5T',mwp:5,mwp_unit:'ton',test_press:10,std:'EN 1677-1',freq:6},
+  {id:'hk-003',type:'hook',brand:'Pewag',model:'Safety Hook 2T',mwp:2,mwp_unit:'ton',test_press:4,std:'EN 1677-1',freq:6},
+  // ── שאקלים ───────────────────────────────────────────
+  {id:'sk-001',type:'shackle',brand:'Crosby',model:'G-209 3.25T',mwp:3.25,mwp_unit:'ton',test_press:6.5,std:'ASME B30.26; EN 13889',freq:6},
+  {id:'sk-002',type:'shackle',brand:'Crosby',model:'G-2130 6.5T',mwp:6.5,mwp_unit:'ton',test_press:13,std:'ASME B30.26; EN 13889',freq:6},
+  {id:'sk-003',type:'shackle',brand:'Gunnebo',model:'GA 4.75T',mwp:4.75,mwp_unit:'ton',test_press:9.5,std:'EN 13889',freq:6},
 ];
 
 function renderModels(data) {
@@ -3159,24 +3172,37 @@ function filterModels(q) {
 function applyModelData(id) {
   var m = MODELS_DB.find(function(x){return x.id===id;});
   if(!m) return;
-  // מעבר לדף תסקיר ומילוי שדות
   navTo('inspection');
   setTimeout(function(){
+    // Fill basic fields
     if(ge('i-brand')) ge('i-brand').value = m.brand;
     if(ge('i-model')) ge('i-model').value = m.model;
     if(ge('i-type')){ ge('i-type').value = m.type; updateChecklist(); }
     if(ge('i-mwp')) ge('i-mwp').value = m.mwp;
     if(ge('i-test-press')) ge('i-test-press').value = m.test_press||'';
-    // יחידות
+    if(ge('i-standard')) ge('i-standard').value = m.std||'';
+    // Sync hidden unit select
+    if(ge('i-mwp-unit')) ge('i-mwp-unit').value = m.mwp_unit;
+    // Update visible unit buttons
     var unitBtns = document.querySelectorAll('#mwp-units .unit-btn');
     unitBtns.forEach(function(b){ b.classList.remove('active'); });
-    var targetUnit = m.mwp_unit;
     unitBtns.forEach(function(b){
       var oc = b.getAttribute('onclick')||'';
-      if(oc.includes("'"+targetUnit+"'")){ b.classList.add('active'); }
+      if(oc.indexOf("'"+m.mwp_unit+"'") >= 0) b.classList.add('active');
     });
     updateUnitsForType(m.type);
-    calcNextInspDate();
+    // Calculate next inspection date from i-date + freq
+    var dateEl = ge('i-date');
+    var nextEl = ge('i-next-date');
+    if(dateEl && nextEl && dateEl.value && m.freq) {
+      var d = new Date(dateEl.value);
+      if(!isNaN(d.getTime())) {
+        d.setMonth(d.getMonth() + m.freq);
+        nextEl.value = d.toISOString().split('T')[0];
+        nextEl.style.background = '#d1fae5';
+        setTimeout(function(){ if(nextEl) nextEl.style.background='var(--s2)'; }, 700);
+      }
+    } else { calcNextInspDate(); }
     toast('נטענו נתוני: '+m.brand+' '+m.model+' ✅','success');
   }, 150);
 }
@@ -3550,33 +3576,39 @@ function setUnit(context, unit, btn) {
   if(context==='mwp' && ge('test-units-label')) ge('test-units-label').textContent=lbl;
 }
 function updateUnitsForType(type) {
-  const pTypes=['boiler','steam-collector','air-collector','autoclave','pressure-vessel'];
-  const liftTypes=['forklift','crane-bridge','crane-jib','crane-tower','crane-mobile','aerial-platform','elevator','lift-platform','vehicle-hoist'];
-  const accTypes=['chain','hook','sling-textile','sling-wire','spreader-beam'];
-  const isPressure=pTypes.includes(type);
-  const isLifting=liftTypes.includes(type)||accTypes.includes(type);
-  const ml=ge('mwp-label'), tl=ge('test-press-label'), hs=ge('hydro-section');
-  if(ml) ml.textContent=isPressure?'לחץ עבודה מותר (MWP)':'עומס עבודה בטוח (SWL)';
-  if(tl) tl.textContent=isPressure?'לחץ בדיקה':'עומס בדיקה';
-  if(hs) hs.style.display=isPressure?'':'none';
-  // Show/hide relevant unit buttons
-  const mu=ge('mwp-units');
-  if(mu){
-    const btns=mu.querySelectorAll('.unit-btn');
-    btns.forEach(b=>{
-      const oc=b.getAttribute('onclick')||'';
-      const isBarPsi=oc.includes("'bar'")||oc.includes("'psi'");
-      const isTonKg=oc.includes("'ton'")||oc.includes("'kg'");
-      if(isPressure) b.style.display=isTonKg?'none':'';
-      else if(isLifting) b.style.display=isBarPsi?'none':'';
-      else b.style.display=''; // show all if type unknown
+  var barTypes = ['boiler','boiler-hot','boiler-hydro','steam-collector','air-collector','autoclave','pressure-vessel'];
+  var tonTypes = ['forklift','crane-bridge','crane-jib','crane-tower','crane-mobile','chain','hook','sling-textile','sling-wire','spreader-beam','shackle'];
+  var kgTypes  = ['aerial-platform','elevator','lift-platform'];
+  var defaultUnit = barTypes.indexOf(type)>=0 ? 'bar' : tonTypes.indexOf(type)>=0 ? 'ton' : kgTypes.indexOf(type)>=0 ? 'kg' : 'bar';
+  var isPressure = barTypes.indexOf(type) >= 0;
+  var isLifting  = tonTypes.indexOf(type) >= 0 || kgTypes.indexOf(type) >= 0;
+  var ml=ge('mwp-label'), tl=ge('test-press-label'), hs=ge('hydro-section');
+  if(ml) ml.textContent = isPressure ? 'לחץ עבודה מותר (MWP)' : 'עומס עבודה בטוח (SWL)';
+  if(tl) tl.textContent = isPressure ? 'לחץ בדיקה' : 'עומס בדיקה';
+  if(hs) hs.style.display = isPressure ? '' : 'none';
+  // Update unit buttons
+  var mu = ge('mwp-units');
+  if(mu) {
+    var btns = mu.querySelectorAll('.unit-btn');
+    btns.forEach(function(b){
+      var oc = b.getAttribute('onclick')||'';
+      var isBarPsi = oc.indexOf("'bar'")>=0 || oc.indexOf("'psi'")>=0;
+      var isTon    = oc.indexOf("'ton'")>=0;
+      var isKg     = oc.indexOf("'kg'")>=0;
+      if(isPressure)      b.style.display = (isTon||isKg) ? 'none' : '';
+      else if(type==='aerial-platform'||type==='elevator') b.style.display = (isBarPsi||isTon) ? 'none' : '';
+      else if(isLifting)  b.style.display = isBarPsi ? 'none' : '';
+      else b.style.display = '';
     });
     // Set active default
-    btns.forEach(b=>b.classList.remove('active'));
-    const defUnit=isPressure?'bar':isLifting?'ton':'bar';
-    const defBtn=Array.from(btns).find(b=>(b.getAttribute('onclick')||'').includes("'"+defUnit+"'"));
-    if(defBtn){defBtn.classList.add('active');_mwpUnit=defUnit;}
-    if(ge('test-units-label'))ge('test-units-label').textContent=isPressure?'בר':isLifting?'טון':'';
+    btns.forEach(function(b){ b.classList.remove('active'); });
+    btns.forEach(function(b){
+      var oc = b.getAttribute('onclick')||'';
+      if(oc.indexOf("'"+defaultUnit+"'")>=0) b.classList.add('active');
+    });
+    _mwpUnit = defaultUnit;
+    if(ge('i-mwp-unit')) ge('i-mwp-unit').value = defaultUnit;
+    if(ge('test-units-label')) ge('test-units-label').textContent = defaultUnit==='bar'?'בר':defaultUnit==='ton'?'טון':'ק"ג';
   }
 }
 
@@ -3899,6 +3931,39 @@ function exportBackup() {
 }
 
 function resetDB() { localStorage.removeItem(DB_KEY); location.reload(); }
+
+function resetInspectionForm() {
+  _currentDefects = [];
+  _selectedMultiAcc = {};
+  renderCurrentDefects();
+  if(DB.currentInsp) DB.currentInsp = {checklist:{}};
+  ['i-client','i-equip','i-po','i-findings','i-score','i-amount',
+   'i-owner-email','i-supervisor-email','i-standard'].forEach(function(id){ var el=ge(id); if(el) el.value=''; });
+  var today = new Date().toISOString().split('T')[0];
+  if(ge('i-date')) ge('i-date').value = today;
+  if(ge('i-valid-until')) ge('i-valid-until').value = '';
+  // Reset units to bar default
+  if(ge('i-mwp-unit')) ge('i-mwp-unit').value='bar';
+  var unitBtns=document.querySelectorAll('#mwp-units .unit-btn');
+  unitBtns.forEach(function(b){b.classList.remove('active');b.style.display='';});
+  var defBtn=Array.from(unitBtns).find(function(b){return (b.getAttribute('onclick')||'').indexOf("'bar'")>=0;});
+  if(defBtn) defBtn.classList.add('active');
+  ['main-media-grid','critical-media-grid','notes-media-content','defect-media-grid','repair-media-grid'].forEach(function(gid){
+    var g=ge(gid); if(g) g.querySelectorAll('.media-thumb').forEach(function(el){el.remove();});
+  });
+  clearSig();
+  showInspTab(0);
+  var multiCard=ge('multi-acc-select-card');if(multiCard)multiCard.style.display='none';
+  var multiTable=ge('multi-acc-table-container');if(multiTable)multiTable.style.display='none';
+  var clContainer=ge('checklist-container');if(clContainer)clContainer.style.display='';
+  var equipRow=ge('i-equip')?ge('i-equip').closest('.form-group'):null;if(equipRow)equipRow.style.display='';
+  autoGenInspNum();
+  if(DB.settings&&DB.settings.name&&ge('i-inspector')&&!ge('i-inspector').value) ge('i-inspector').value=DB.settings.name;
+  document.querySelectorAll('#result-btns button').forEach(function(b){b.style.fontWeight='';b.style.boxShadow='';});
+  var iResult=ge('i-result');if(iResult)iResult.value='';
+  var cc=ge('checklist-container');if(cc)cc.innerHTML='<div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן לטעינת רשימת בדיקה</div>';
+  var piCard=ge('prev-insp-card');if(piCard)piCard.style.display='none';
+}
 
 // ════════════════════════════════════════════════════════
 // POPULATE SELECTS ON INSPECTION PAGE
