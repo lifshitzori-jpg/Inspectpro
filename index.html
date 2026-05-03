@@ -23,7 +23,7 @@ button,input,select,textarea{font-family:inherit;}
 button{cursor:pointer;}
 
 /* ── LAYOUT ── */
-#app{display:none;height:100%;overflow:hidden;}
+#app{display:none;height:100vh;overflow:hidden;}
 #sidebar{width:230px;background:#0f172a;display:flex;flex-direction:column;height:100vh;flex-shrink:0;transition:width .25s;overflow:hidden;}
 #sidebar.collapsed{width:58px;}
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
@@ -122,8 +122,7 @@ button{cursor:pointer;}
 .tabs{display:flex;gap:2px;padding:3px;background:var(--s2);border-radius:9px;border:1px solid var(--bdr);}
 .tab{flex:1;padding:7px 10px;border-radius:7px;border:none;background:transparent;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap;}
 .tab.active{background:var(--white);color:var(--blue);box-shadow:var(--sh);}
-.tab-content, .insp-tab-content { display: none; }
-.tab-content.active, .insp-tab-content.active { display: block; animation: fadeUp .2s ease; }
+.tab-content{display:none;}.tab-content.active{display:block;}
 
 /* ── OVERLAY / MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(3px);}
@@ -356,6 +355,7 @@ button{cursor:pointer;}
     <button class="nav-item" onclick="navTo('calendar')"><span class="ni">📅</span><span class="nav-lbl">לוח שנה</span></button>
     <button class="nav-item" onclick="navTo('models')"><span class="ni">📚</span><span class="nav-lbl">מאגר דגמים</span></button>
     <button class="nav-item" onclick="navTo('settings')"><span class="ni">⚙️</span><span class="nav-lbl">הגדרות</span></button>
+    <button class="nav-item" onclick="navTo('inspectors')"><span class="ni">👷</span><span class="nav-lbl">מפקחים</span></button>
     <button class="nav-item" onclick="navTo('checklists')" id="page-nav-checklists"><span class="ni">📋</span><span class="nav-lbl">צ.ליסט</span></button>
   </nav>
   <div class="sb-foot" id="sb-foot">
@@ -375,7 +375,6 @@ button{cursor:pointer;}
     <div class="topbar-right">
       <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV</button>
       <button class="btn btn-primary btn-sm" onclick="navTo('inspection')">+ תסקיר</button>
-            <button class="btn btn-secondary btn-sm" onclick="startMultiAccInsp()" title="תסקיר מרוכז לאביזרי הרמה">📦 מרוכז</button>
       <div style="position:relative">
         <button id="avatar-btn" onclick="toggleProfileMenu()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#7c3aed);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700" title="פרופיל">👤</button>
         <div id="profile-menu" style="display:none;position:absolute;left:0;top:44px;background:#fff;border:1px solid #dde3ef;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;z-index:9999;overflow:hidden">
@@ -485,32 +484,21 @@ button{cursor:pointer;}
                   <select id="i-equip" onchange="onEquipChange()" style="flex:1">
                     <option value="">בחר מתקן...</option>
                   </select>
-                  <button class="btn btn-secondary btn-xs" style="white-space:nowrap" onclick="openAddEquipFromInsp()">+ חדש</button>
+                  <button class="btn btn-secondary btn-xs" style="white-space:nowrap" onclick="openModal('addEquip')">+ חדש</button>
                 </div>
               </div>
-              <!-- Multi-acc selection (shown only for multi-acc type) -->
-              <div id="multi-acc-select-card" class="card mb3" style="display:none;border:2px solid var(--blue);border-radius:var(--r2);">
-                <div class="card-header" style="background:var(--blue-bg)"><span>📦</span><h3>בחר אביזרי הרמה לבדיקה</h3></div>
-                <div class="card-body">
-                  <div class="alert alert-info mb2" style="font-size:12px;padding:8px 12px;">
-                    <strong>הוראות:</strong> בחר לקוח ← סמן אביזרים ← עבור לטאב "צ׳ק-ליסט" לסמן תקין/ליקוי לכל אחד
-                  </div>
-                  <div id="multi-acc-list" style="max-height:260px;overflow-y:auto;">
-                    <div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה</div>
-                  </div>
-                </div>
-              </div>
-
               <div class="form-group mb3">
                 <label>סוג מתקן</label>
                 <select id="i-type" onchange="updateChecklist()">
+                  <option value="">בחר סוג...</option>
                   <optgroup label="🔥 מתקני לחץ">
                     <option value="boiler">דוד קיטור – בדיקה קרה</option>
-                    <option value="boiler-hot">דוד קיטור – בדיקה חמה</option>
-                    <option value="boiler-hydro">דוד קיטור – הידרוסטטית</option>
+          <option value="boiler-hot">דוד קיטור – בדיקה חמה</option>
+          <option value="boiler-hydro">דוד קיטור – הידרוסטטי</option>
+                    <option value="steam-collector">קולט קיטור</option>
                     <option value="air-collector">קולט אוויר / קומפרסור</option>
                     <option value="autoclave">אוטוקלב</option>
-                    <option value="pressure-vessel">כלי לחץ</option>
+                    <option value="pressure-vessel">מיכל לחץ</option>
                   </optgroup>
                   <optgroup label="🏗️ מתקני הרמה">
                     <option value="forklift">מלגזה</option>
@@ -519,21 +507,16 @@ button{cursor:pointer;}
                     <option value="crane-tower">מנוף צריח</option>
                     <option value="crane-mobile">מנוף נייד</option>
                     <option value="aerial-platform">במת הרמה / נאקל</option>
+                    <option value="elevator">מעלית / הרמון</option>
                     <option value="lift-platform">שולחן הרמה</option>
+                    <option value="vehicle-hoist">ליפט רכב</option>
                   </optgroup>
                   <optgroup label="⛓️ אביזרי הרמה">
                     <option value="chain">שרשרת הרמה</option>
                     <option value="hook">ווי הרמה</option>
                     <option value="sling-textile">רצועת טקסטיל</option>
                     <option value="sling-wire">כבל פלדה</option>
-                    <option value="spreader-beam">קורת הרמה</option>
-                    <option value="shackle">שאקל / צלחת</option>
-                    <option value="rope">חבל פלדה</option>
-                  </optgroup>
-                  <optgroup label="🔧 אחר">
-                    <option value="elevator">מעלית</option>
-                    <option value="playground">מתקן משחקים</option>
-                    <option value="other">אחר</option>
+                    <option value="spreader-beam">קרן מרחיקה</option>
                   </optgroup>
                 </select>
               </div>
@@ -623,9 +606,6 @@ button{cursor:pointer;}
                     <option value="follow-up">ביקור חוזר</option>
                     <option value="other">אחר</option>
                   </optgroup>
-                  <optgroup label="📦 בדיקה מרוכזת">
-                    <option value="multi-acc">📦 בדיקה מרוכזת – אביזרי הרמה (שרשראות, ווים, רצועות...)</option>
-                  </optgroup>
                   <optgroup label="דוד קיטור" id="boiler-options" style="display:none">
                     <option value="boiler-cold">דוד קיטור – בדיקה קרה</option>
                     <option value="boiler-hot">דוד קיטור – בדיקה חמה (תחת לחץ)</option>
@@ -665,17 +645,12 @@ button{cursor:pointer;}
       <div class="insp-tab-content" id="itab-1">
         <div class="card mb4">
           <div class="card-header">
-            <span id="checklist-tab-icon">✓</span><h3 id="checklist-tab-title">רשימת בדיקה</h3>
+            <span>✓</span><h3>רשימת בדיקה</h3>
             <div style="font-size:12px;color:var(--text3)" id="checklist-progress">0/0 בוצעו</div>
           </div>
           <div class="card-body">
             <div id="checklist-container">
               <div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן בשלב הקודם לטעינת רשימת בדיקה</div>
-            </div>
-            <!-- Fast-fill table for multi-acc inspection -->
-            <div id="multi-acc-table-container" style="display:none;">
-              <div class="alert alert-info mb3" style="font-size:12px;">סמן כל אביזר: ✅ תקין / ❌ ליקוי / N/A לא רלוונטי</div>
-              <div id="multi-acc-table-body"></div>
             </div>
           </div>
         </div>
@@ -812,8 +787,13 @@ button{cursor:pointer;}
                 <input type="email" id="i-owner-email" dir="ltr" placeholder="owner@factory.co.il">
               </div>
               <div class="form-group">
-                <label>מייל מפקח עבודה</label>
-                <input type="email" id="i-supervisor-email" dir="ltr" placeholder="supervisor@gov.il">
+                <label>מפקח עבודה</label>
+                <div class="flex gap2">
+                  <select id="i-supervisor-select" onchange="onInspectorSelect()" style="flex:1">
+                    <option value="">בחר מפקח...</option>
+                  </select>
+                  <input type="email" id="i-supervisor-email" dir="ltr" placeholder="supervisor@gov.il" style="flex:1">
+                </div>
               </div>
               <div class="form-group form-full">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -948,19 +928,13 @@ button{cursor:pointer;}
             <div class="form-group mb3"><label>מספר רישיון</label><input type="text" id="s-lic" dir="ltr"></div>
             <div class="form-group mb3"><label>טלפון</label><input type="tel" id="s-phone" dir="ltr"></div>
             <div class="form-group mb3"><label>אימייל</label><input type="email" id="s-email" dir="ltr"></div>
+            <button class="btn btn-primary" onclick="saveSettings()">שמור הגדרות</button>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><span>✍️</span><h3>חתימה דיגיטלית קבועה</h3><button class="btn btn-secondary btn-xs" onclick="clearSettingsSig()">נקה</button></div>
+          <div class="card-header"><span>💾</span><h3>נתונים</h3></div>
           <div class="card-body">
-            <div class="alert alert-info mb3" style="font-size:11px;">חתימה זו תצורף אוטומטית לכל תסקיר PDF.</div>
-            <canvas id="settings-sig-canvas" style="width:100%;height:140px;border:1.5px solid var(--bdr);border-radius:var(--r2);touch-action:none;cursor:crosshair;background:#fff;"></canvas>
-            <button class="btn btn-primary mt3" style="width:100%;justify-content:center;padding:10px;" onclick="saveSettings()">💾 שמור הגדרות וחתימה</button>
-          </div>
-        </div>
-        <div class="card form-full">
-          <div class="card-header"><span>💾</span><h3>נתונים וגיבוי</h3></div>
-          <div class="card-body">
+            <div class="alert alert-success mb3">✅ נתונים נשמרים אוטומטית על המכשיר</div>
             <div class="flex gap2 mb3">
               <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 ייצוא CSV</button>
               <button class="btn btn-secondary btn-sm" onclick="exportBackup()">💾 גיבוי JSON</button>
@@ -973,6 +947,43 @@ button{cursor:pointer;}
 
   </div><!-- /content -->
 
+  <!-- INSPECTORS PAGE -->
+  <section class="page" id="page-inspectors">
+    <div style="padding:18px">
+      <div class="flex fac gap3 mb4">
+        <h2 style="font-size:16px;font-weight:800">👷 מפקחי עבודה אזוריים</h2>
+        <button class="btn btn-primary btn-sm" onclick="openAddInspectorModal()">+ הוסף מפקח</button>
+      </div>
+      <div class="card">
+        <table class="tbl">
+          <thead><tr>
+            <th>שם</th><th>אזור</th><th>אימייל</th><th>טלפון</th><th></th>
+          </tr></thead>
+          <tbody id="inspectors-tbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADD INSPECTOR MODAL -->
+  <div class="overlay" id="modal-addInspector">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header"><span>👷</span><h3>הוסף מפקח עבודה</h3>
+        <button class="modal-close" onclick="closeModal('addInspector')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group mb3"><label>שם מלא</label><input type="text" id="insp-name" placeholder="ישראל ישראלי"></div>
+        <div class="form-group mb3"><label>אזור</label><input type="text" id="insp-region" placeholder="תל אביב, חיפה..."></div>
+        <div class="form-group mb3"><label>אימייל</label><input type="email" id="insp-email" dir="ltr" placeholder="inspector@gov.il"></div>
+        <div class="form-group"><label>טלפון</label><input type="tel" id="insp-phone" dir="ltr" placeholder="050-0000000"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addInspector')">ביטול</button>
+        <button class="btn btn-primary" onclick="saveInspector()">💾 שמור</button>
+      </div>
+    </div>
+  </div>
+
   <!-- CHECKLISTS PAGE -->
   <section class="page" id="page-checklists">
     <div class="page-header">
@@ -982,38 +993,21 @@ button{cursor:pointer;}
       </div>
       <div class="flex gap2" style="flex-wrap:wrap">
         <select id="cl-type-sel" onchange="renderChecklistEditor()" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:var(--r2);font-size:13px;min-width:160px">
-            <optgroup label="🔥 מתקני לחץ">
-              <option value="boiler">דוד קיטור – בדיקה קרה</option>
-              <option value="boiler-hot">דוד קיטור – בדיקה חמה</option>
-              <option value="boiler-hydro">דוד קיטור – הידרוסטטית</option>
-              <option value="air-collector">קולט אוויר / קומפרסור</option>
-              <option value="autoclave">אוטוקלב</option>
-              <option value="pressure-vessel">כלי לחץ</option>
-            </optgroup>
-            <optgroup label="🏗️ מתקני הרמה">
-              <option value="forklift">מלגזה</option>
-              <option value="crane-bridge">עגורן גשר</option>
-              <option value="crane-jib">מנוף זרוע</option>
-              <option value="crane-tower">מנוף צריח</option>
-              <option value="crane-mobile">מנוף נייד</option>
-              <option value="aerial-platform">במת הרמה / נאקל</option>
-              <option value="lift-platform">שולחן הרמה</option>
-            </optgroup>
-            <optgroup label="⛓️ אביזרי הרמה">
-              <option value="chain">שרשרת הרמה</option>
-              <option value="hook">ווי הרמה</option>
-              <option value="sling-textile">רצועת טקסטיל</option>
-              <option value="sling-wire">כבל פלדה</option>
-              <option value="spreader-beam">קורת הרמה</option>
-              <option value="shackle">שאקל / צלחת</option>
-              <option value="rope">חבל פלדה</option>
-            </optgroup>
-            <optgroup label="🔧 אחר">
-              <option value="elevator">מעלית</option>
-              <option value="playground">מתקן משחקים</option>
-              <option value="other">אחר</option>
-            </optgroup>
-          </select>
+          <option value="boiler">דוד קיטור</option>
+          <option value="steam-collector">קולט קיטור</option>
+          <option value="air-collector">קולט אוויר</option>
+          <option value="autoclave">אוטוקלאב</option>
+          <option value="crane-tower">עגורן צריח</option>
+          <option value="crane-mobile">עגורן נייד</option>
+          <option value="crane-bridge">עגורן גשר</option>
+          <option value="forklift">מלגזה</option>
+          <option value="aerial-platform">במת הרמה</option>
+          <option value="elevator">מעלית</option>
+          <option value="chain">שרשרת הרמה</option>
+          <option value="hook">אונקל</option>
+          <option value="sling-wire">כבל פלדה</option>
+          <option value="sling-textile">רצועת אריג</option>
+        </select>
         <button class="btn btn-secondary btn-sm" onclick="addChecklistSection()">+ קבוצה חדשה</button>
         <button class="btn btn-success btn-sm" onclick="saveChecklistChanges()">💾 שמור שינויים</button>
       </div>
@@ -1049,34 +1043,15 @@ button{cursor:pointer;}
         <div class="form-group">
           <label>סוג מתקן</label>
           <select id="eq-type">
-              <optgroup label="🔥 מתקני לחץ">
-                <option value="boiler">דוד קיטור</option>
-                <option value="air-collector">קולט אוויר</option>
-                <option value="autoclave">אוטוקלב</option>
-              </optgroup>
-              <optgroup label="🏗️ מתקני הרמה">
-                <option value="forklift">מלגזה</option>
-                <option value="crane-bridge">עגורן גשר</option>
-                <option value="crane-jib">מנוף זרוע</option>
-                <option value="aerial-platform">במת הרמה</option>
-                <option value="lift-platform">שולחן הרמה</option>
-              </optgroup>
-              <optgroup label="⛓️ אביזרי הרמה">
-                <option value="chain">שרשרת הרמה</option>
-                <option value="hook">ווי הרמה</option>
-                <option value="sling-textile">רצועת טקסטיל</option>
-                <option value="sling-wire">כבל פלדה</option>
-                <option value="spreader-beam">קורת הרמה</option>
-                <option value="shackle">שאקל / צלחת</option>
-                <option value="rope">חבל פלדה</option>
-              </optgroup>
-              <optgroup label="🔧 אחר">
-                <option value="elevator">מעלית</option>
-                <option value="playground">מתקן משחקים</option>
-                <option value="pressure-vessel">כלי לחץ</option>
-                <option value="other">אחר</option>
-              </optgroup>
-            </select>
+            <option value="boiler">דוד קיטור</option>
+            <option value="air-collector">קולט אוויר</option>
+            <option value="forklift">מלגזה</option>
+            <option value="crane-bridge">עגורן גשר</option>
+            <option value="crane-jib">מנוף זרוע</option>
+            <option value="aerial-platform">במת הרמה</option>
+            <option value="chain">שרשרת</option>
+            <option value="other">אחר</option>
+          </select>
         </div>
         <div class="form-group" style="position:relative">
           <label>יצרן</label>
@@ -1270,7 +1245,8 @@ button{cursor:pointer;}
       <div class="alert alert-info mb3">📷 צלם את טבלת העומסים – AI יחלץ את הנתונים אוטומטית</div>
       <div class="flex gap2 mb3">
         <button class="btn btn-primary btn-sm" onclick="openCamera('table')">📷 צלם טבלה</button>
-        <button class="btn btn-secondary" onclick="closeModal('scanTable')">ביטול</button>
+        <button class="btn btn-secondary
+ onclick="closeModal('scanTable')">ביטול</button>
       </div>
     </div>
   </div>
@@ -1312,10 +1288,6 @@ function getSB() {
 // ════════════════════════════════════════════════
 // LOGIN FUNCTIONS
 // ════════════════════════════════════════════════
-// ── core helpers (needed by login functions) ──
-const ge = id => document.getElementById(id);
-const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
 function lbTab(t) {
   ge('lb-in').style.display = t === 'in' ? 'block' : 'none';
   ge('lb-up').style.display = t === 'up' ? 'block' : 'none';
@@ -1454,23 +1426,6 @@ async function loadFromSupabase(userId) {
     console.error('loadFromSupabase error:', e);
     DB = seed();
   }
-  // Load user settings from Supabase
-  try {
-    var sbS = getSB();
-    if(sbS && userId) {
-      var setRes = await sbS.from('user_settings').select('settings_json').eq('user_id', userId).single();
-      if(setRes.data && setRes.data.settings_json) {
-        DB.settings = setRes.data.settings_json;
-        if(DB.settings.custom_checklists) {
-          Object.keys(DB.settings.custom_checklists).forEach(function(k){
-            if(typeof CHECKLISTS !== 'undefined') CHECKLISTS[k] = DB.settings.custom_checklists[k];
-          });
-        }
-      }
-    }
-  } catch(eS) {
-    try { var lsDB=JSON.parse(localStorage.getItem(DB_KEY)||'{}'); if(lsDB.settings) DB.settings=lsDB.settings; } catch(e2){}
-  }
   initAppAfterLogin();
 }
 
@@ -1517,16 +1472,41 @@ function initAppAfterLogin() {
 window.addEventListener('load', function() {
   // Enter key on password
   var p = ge('lb-pass');
-  if(p) p.addEventListener('keydown', function(e){ if(e.key==='Enter') lbLogin(); });
+  if (p) p.addEventListener('keydown', function(e) { if (e.key === 'Enter') lbLogin(); });
+
+  // Try Supabase session
+  try {
+    var sb = getSB();
+    if (sb) {
+      sb.auth.getSession().then(function(res) {
+        if (res.data && res.data.session) {
+          onLoggedIn(res.data.session.user);
+        } else {
+          // No session - show login screen
+          showLoginScreen();
+        }
+      }).catch(function() { showLoginScreen(); });
+      
+      sb.auth.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_IN' && session && !_user) {
+          onLoggedIn(session.user);
+        }
+      });
+    } else {
+      showLoginScreen();
+    }
+  } catch(e) {
+    console.warn('Supabase error:', e.message);
+    showLoginScreen();
+  }
 });
 
 function showLoginScreen() {
   var lw = ge('login-wrap');
-  if (lw) { lw.style.display = 'flex'; lw.classList.remove('hidden'); }
-  var app = ge('app');
-  if (app) app.style.display = 'none';
+  if (lw) { lw.classList.add('active'); }
 }
 
+'use strict';
 
 // ════════════════════════════════════════════════════════
 // DATA LAYER
@@ -1534,40 +1514,52 @@ function showLoginScreen() {
 const DB_KEY = 'inspectpro_v6';
 
 function seed() {
-  // נתוני ברירת מחדל ריקים – הנתונים האמיתיים נטענים מ-Supabase
   return {
     ver: 6,
-    settings: { name:'', lic:'', phone:'', email:'', signature:'' },
-    clients: [],
-    equipment: [],
-    inspections: [],
-    defects: [],
-    invoices: [],
-    nextId: { client:1, equip:1, insp:1, defect:1, invoice:1 },
+    settings: { name:'ר. ישראלי', lic:'IL-12345', phone:'054-0000000', email:'inspector@mail.com' },
+    clients: [
+      { id:1, name:'תנובה מרכז שיתופי', num:'CL-001', contact:'דני לוי', phone:'03-6138000', email:'dany@tnuva.co.il', address:'דרך השלום 34, רמת גן',
+        sites:['מחלבת עמק','מפעל רמת גן','מחסן מרכזי'] },
+      { id:2, name:'יוניליוור ישראל', num:'CL-002', contact:'שרה כהן', phone:'08-8600000', email:'sarah@unilever.co.il', address:'רח׳ התעשייה 5, אשדוד',
+        sites:['מפעל אשדוד'] },
+      { id:3, name:'נסטלה ישראל', num:'CL-003', contact:'עמית שרון', phone:'03-5334444', email:'amit@nestle.co.il', address:'רח׳ הצורן 5, אור יהודה',
+        sites:['מפעל אור יהודה','מחסן הצפון'] },
+    ],
+    equipment: [
+      { id:1, clientId:1, site:'מחלבת עמק', type:'boiler', brand:'Bosch', model:'Unimat UM-40', serial:'BU40-2019', year:2019, mwp:'10', mwp_unit:'bar', testPress:'13', hydro:'15', location:'חדר הדודים', lastInsp:'2024-05-15', nextInsp:'2025-07-15' },
+      { id:2, clientId:2, site:'מפעל אשדוד', type:'forklift', brand:'Toyota', model:'8FBM25', serial:'TY25-2020', year:2020, mwp:'2.5', mwp_unit:'ton', testPress:'', hydro:'', location:'מחסן ראשי', lastInsp:'2024-10-01', nextInsp:'2025-10-01' },
+      { id:3, clientId:3, site:'מפעל אור יהודה', type:'boiler', brand:'Cleaver Brooks', model:'CB-200', serial:'CB200-2018', year:2018, mwp:'12', mwp_unit:'bar', testPress:'15.6', hydro:'18', location:'מחלקת בישול', lastInsp:'2024-03-10', nextInsp:'2025-05-10' },
+      { id:4, clientId:1, site:'מפעל רמת גן', type:'air-collector', brand:'Atlas Copco', model:'GA 37', serial:'AC37-2021', year:2021, mwp:'11', mwp_unit:'bar', testPress:'14.3', hydro:'16.5', location:'חדר מדחסים', lastInsp:'2023-11-20', nextInsp:'2025-01-20' },
+      { id:5, clientId:1, site:'מחלבת עמק', type:'crane-bridge', brand:'Demag', model:'DRS-10', serial:'DM10-2017', year:2017, mwp:'10', mwp_unit:'ton', testPress:'', hydro:'', location:'אולם ייצור', lastInsp:'2024-08-10', nextInsp:'2025-08-10' },
+    ],
+    inspections: [
+      { id:1, equipId:1, clientId:1, num:'IR-2024-015', date:'2024-05-15', type:'periodic-14', result:'approved', inspector:'ר. ישראלי', mwp:'10 בר', nextDate:'2025-07-15', findings:'הדוד תקין. נמצאה שכבת אבנית קלה.', score:92, defects:1, sent:true, amount:2800 },
+      { id:2, equipId:3, clientId:3, num:'IR-2024-008', date:'2024-03-10', type:'periodic-14', result:'conditional', inspector:'ר. ישראלי', mwp:'12 בר', nextDate:'2025-05-10', findings:'נמצא קורוזיה בגוף הדוד.', score:71, defects:2, sent:true, amount:3200 },
+    ],
+    defects: [
+      { id:1, inspId:1, equipId:1, clientId:1, text:'שכבת אבנית בצינורות עשן', severity:'low', status:'open', deadline:'2025-08-01', action:'ניקוי צינורות', docRequired:false, repairDoc:'', createdAt:'2024-05-15' },
+      { id:2, inspId:2, equipId:3, clientId:3, text:'קורוזיה בגוף הדוד', severity:'critical', status:'open', deadline:'2025-04-10', action:'החלפת לוחות', docRequired:true, repairDoc:'', createdAt:'2024-03-10' },
+    ],
+    invoices: [
+      { id:1, clientId:1, inspId:1, amount:2800, status:'paid', date:'2024-05-20', paidDate:'2024-06-01' },
+      { id:2, clientId:3, inspId:2, amount:3200, status:'pending', date:'2024-03-15', paidDate:'' },
+    ],
+    nextId: { client:4, equip:6, insp:3, defect:3, invoice:3 },
+    // Current inspection state
     currentInsp: null,
   };
 }
 
-function loadDB() {
-  try {
-    var r = localStorage.getItem(DB_KEY);
-    if(r) {
-      var parsed = JSON.parse(r);
-      // אם יש נתוני דמו ישנים (לקוחות עם ID מספרי קטן) – נמחק ונתחיל רענן
-      var hasDemo = parsed.clients && parsed.clients.some(function(c){ return typeof c.id === 'number'; });
-      if(hasDemo) { localStorage.removeItem(DB_KEY); return seed(); }
-      return parsed;
-    }
-  } catch(e) {}
-  return seed();
-}
+function loadDB() { try { const r=localStorage.getItem(DB_KEY); if(r) return JSON.parse(r); } catch(e){} return seed(); }
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
 function nid(t) { const id=DB.nextId[t]; DB.nextId[t]++; saveDB(); return id; }
 let DB = loadDB();
 
 // ════════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════════
-
+const ge = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt = d => d ? new Date(d).toLocaleDateString('he-IL') : '—';
 const daysUntil = d => d ? Math.round((new Date(d)-new Date())/86400000) : 9999;
 const cln = id => (DB.clients.find(c=>String(c.id)===String(id))||{}).name||'—';
@@ -1678,6 +1670,15 @@ function deleteItemByEl(btn) {
     CHECKLISTS[type][section]=CHECKLISTS[type][section].filter(function(x){return x.id!==id;});
   renderChecklistEditor();
 }
+function deleteSectionByEl(btn) {
+  var card=btn.closest('[data-section]');
+  var type=(ge('cl-type-sel')||{}).value||'boiler';
+  var section=card?card.getAttribute('data-section'):'';
+  if(!section){toast('שגיאה','error');return;}
+  if(!confirm('מחוק את הקבוצה "'+section+'" וכל פריטיה?')) return;
+  if(CHECKLISTS[type]) delete CHECKLISTS[type][section];
+  renderChecklistEditor();
+}
 function addItemByEl(btn) {
   var card=btn.closest('[data-section]');
   var type=(ge('cl-type-sel')||{}).value||'boiler';
@@ -1715,7 +1716,7 @@ function renderChecklistEditor() {
       '<div class="card-header" style="background:var(--s2)">' +
       '<span>📁</span>' +
       '<input type="text" value="'+esc(section)+'" data-orig="'+esc(section)+'" data-type="'+type+'" style="flex:1;border:none;background:transparent;font-size:14px;font-weight:700;outline:none" onchange="renameSectionEl(this)">' +
-      '<button class="btn btn-danger btn-xs" data-del-type="'+type+'" data-del-section="'+esc(section)+'" onclick="deleteSection(this,this.dataset.delType,this.dataset.delSection)">🗑 מחק קבוצה</button>' +
+      '<button class="btn btn-danger btn-xs" onclick="deleteSectionByEl(this)">🗑 מחק קבוצה</button>' +
       '</div>' +
       '<div class="checklist-edit-items" style="padding:8px 16px">' +
       items.map(function(item, idx) {
@@ -1787,25 +1788,14 @@ function addItem(btn, type, section) {
 }
 
 function addChecklistSection() {
-  openModal('addChecklistGroup');
-  var inp = ge('new-cl-group-name');
-  if(inp) { inp.value = ''; setTimeout(function(){ inp.focus(); }, 100); }
-}
-
-function confirmAddChecklistSection() {
-  var type = (ge('cl-type-sel')||{}).value || 'boiler';
-  var nameInp = ge('new-cl-group-name');
-  var name = nameInp ? nameInp.value.trim() : '';
-  if(!name) { toast('נא להזין שם לקבוצה','error'); return; }
+  const type = (ge('cl-type-sel')||{}).value || 'boiler';
+  const name = prompt('שם הקבוצה החדשה:');
+  if(!name || !name.trim()) return;
   if(!CHECKLISTS[type]) CHECKLISTS[type] = {};
-  if(CHECKLISTS[type][name]) { toast('קבוצה בשם זה כבר קיימת','error'); return; }
-  CHECKLISTS[type][name] = [];
+  CHECKLISTS[type][name.trim()] = [];
   renderChecklistEditor();
-  closeModal('addChecklistGroup');
   toast('קבוצה "'+name+'" נוספה','success');
-  saveChecklistChanges();
 }
-
 
 function saveChecklistChanges() {
   try {
@@ -1839,8 +1829,9 @@ function renderPage(p) {
     models: renderModels,
     settings: renderSettings,
   };
-  if(p==='inspection') { populateInspSelects(); resetInspectionForm(); }
+  if(p==='inspection') populateInspSelects();
   if(p==='checklists') renderChecklistEditor();
+  if(p==='inspectors') renderInspectors();
   if(renderers[p]) renderers[p]();
   updateBadges();
 }
@@ -1907,7 +1898,7 @@ const INSP_TYPE_LABELS = {
 function inspTypeLabel(t) { return INSP_TYPE_LABELS[t] || t || '—'; }
 
 function typeLabel(t) {
-  const labels = {boiler:'דוד קיטור','steam-collector':'קולט קיטור','air-collector':'קולט אוויר','autoclave':'אוטוקלב','pressure-vessel':'מיכל לחץ',forklift:'מלגזה','crane-bridge':'עגורן גשר','crane-jib':'מנוף זרוע','crane-tower':'מנוף צריח','crane-mobile':'מנוף נייד','aerial-platform':'במת הרמה',elevator:'מעלית','lift-platform':'שולחן הרמה','vehicle-hoist':'ליפט רכב',chain:'שרשרת',hook:'ווי הרמה','sling-textile':'רצועת טקסטיל','sling-wire':'כבל פלדה','spreader-beam':'קורת פיזור'};
+  const labels = {boiler:'דוד קיטור','steam-collector':'קולט קיטור','air-collector':'קולט אוויר','autoclave':'אוטוקלב','pressure-vessel':'מיכל לחץ',forklift:'מלגזה','crane-bridge':'עגורן גשר','crane-jib':'מנוף זרוע','crane-tower':'מנוף צריח','crane-mobile':'מנוף נייד','aerial-platform':'במת הרמה',elevator:'מעלית','lift-platform':'שולחן הרמה','vehicle-hoist':'ליפט רכב',chain:'שרשרת',hook:'ווי הרמה','sling-textile':'רצועת טקסטיל','sling-wire':'כבל פלדה'};
   return labels[t]||t;
 }
 function typeClass(t) {
@@ -2020,31 +2011,6 @@ function showInspTab(idx) {
   if(tc) tc.classList.add('active');
   const tb = document.querySelectorAll('.insp-tab')[idx];
   if(tb) tb.classList.add('active');
-  // טאב סיכום: אתחל קנבס + מלא חתימה אוטומטית
-  if(idx === 4) {
-    setTimeout(function() {
-      var c = ge('sig-canvas');
-      if(!c) return;
-      // Force canvas to get correct dimensions from visible parent
-      var parent = c.parentElement;
-      var w = parent ? parent.offsetWidth : 0;
-      if(w < 10) w = 380; // fallback for mobile
-      c.width  = w;
-      c.height = 140;
-      c.style.width  = '100%';
-      c.style.height = '140px';
-      // מלא חתימה אוטומטית מהגדרות
-      if(DB.settings && DB.settings.signature) {
-        var ctx = c.getContext('2d');
-        ctx.clearRect(0, 0, c.width, c.height);
-        var img = new Image();
-        img.onload = function() {
-          ctx.drawImage(img, 0, 0, c.width, c.height);
-        };
-        img.src = DB.settings.signature;
-      }
-    }, 120);
-  }
 }
 
 function onClientChange() {
@@ -2065,18 +2031,7 @@ function onClientChange() {
   const eqs = DB.equipment.filter(e=>String(e.clientId)===String(cId));
   eqSel.innerHTML = '<option value="">בחר מתקן...</option>' + eqs.map(e=>`<option value="${e.id}">${esc(e.brand)} ${esc(e.model)} – ${esc(e.location||'')}</option>`).join('');
   // Populate contact
-  if(cl) {
-    if(ge('i-contact')) ge('i-contact').value = cl.contact||'';
-    if(ge('i-phone'))   ge('i-phone').value   = cl.phone||'';
-    if(ge('i-owner-email') && cl.email) ge('i-owner-email').value = cl.email;
-  }
-
-  // Fix 1: clear multi-acc state on client swap
-  _selectedMultiAcc = {};
-  if((ge('i-insp-type')||{}).value === 'multi-acc') {
-    renderMultiAccList();
-    renderMultiAccTable();
-  }
+  if(cl) { if(ge('i-contact'))ge('i-contact').value=cl.contact||''; if(ge('i-phone'))ge('i-phone').value=cl.phone||''; }
 }
 
 function onEquipChange() {
@@ -2603,149 +2558,19 @@ const CHECKLISTS = {
 
 function onInspTypeChange() {
   calcNextInspDate();
+  // Update checklist based on inspection type for boilers
   const inspType = (ge('i-insp-type')||{}).value || '';
-  const isMultiAcc = inspType === 'multi-acc';
-
-  // Toggle single vs multi-acc UI
-  var equipRow = ge('i-equip') ? ge('i-equip').closest('.form-group') : null;
-  if(equipRow) equipRow.style.display = isMultiAcc ? 'none' : '';
-  var multiCard = ge('multi-acc-select-card');
-  if(multiCard) multiCard.style.display = isMultiAcc ? '' : 'none';
-  var clContainer = ge('checklist-container');
-  if(clContainer) clContainer.style.display = isMultiAcc ? 'none' : '';
-  var multiTable = ge('multi-acc-table-container');
-  if(multiTable) multiTable.style.display = isMultiAcc ? '' : 'none';
-
-  if(isMultiAcc) {
-    renderMultiAccList();
-    renderMultiAccTable();
-    var tab1Btn = document.querySelectorAll('.insp-tab')[1];
-    if(tab1Btn) tab1Btn.innerHTML = '2️⃣ טבלת אביזרים 📦';
-    var hIcon = ge('checklist-tab-icon'); if(hIcon) hIcon.textContent='📦';
-    var hTitle = ge('checklist-tab-title'); if(hTitle) hTitle.textContent='טבלת אביזרים מרוכזת';
-    return;
-  }
-
-  // Boiler sub-type checklist logic
   const eqType = (ge('i-type')||{}).value || '';
   if(eqType === 'boiler' && inspType.startsWith('boiler-')) {
     const map = {'boiler-cold':'boiler','boiler-hot':'boiler-hot','boiler-hydro':'boiler-hydro'};
-    _boilerChecklistOverride = map[inspType] || 'boiler';
+    const clKey = map[inspType] || 'boiler';
+    // Temporarily override checklist type for display
+    _boilerChecklistOverride = clKey;
   } else {
     _boilerChecklistOverride = null;
   }
   updateChecklist();
 }
-
-// ════════════════════════════════════════════════════════
-// MULTI-ACC INSPECTION
-// ════════════════════════════════════════════════════════
-var ACC_TYPES = ['chain','hook','sling-textile','sling-wire','spreader-beam','shackle','rope','clamp'];
-
-function renderMultiAccList() {
-  var list = ge('multi-acc-list');
-  if(!list) return;
-  var cId = (ge('i-client')||{}).value;
-  if(!cId) {
-    list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה כדי לטעון אביזרים</div>';
-    return;
-  }
-  // All equipment for this client (both field name variants)
-  var clientEquip = DB.equipment.filter(function(e){
-    return String(e.clientId||e.client_id||'') === String(cId);
-  });
-  // Filter to lifting accessory types only
-  var accItems = clientEquip.filter(function(e){
-    return ACC_TYPES.includes(String(e.type||''));
-  });
-  if(!accItems.length) {
-    if(clientEquip.length > 0) {
-      list.innerHTML = '<div class="alert alert-warn" style="margin:10px;font-size:12px;">ללקוח זה יש <strong>'+clientEquip.length+'</strong> מתקנים, אך אף אחד מוגדר כאביזר הרמה.<br>הוסף אביזרים (שרשרת/רצועה/וו) דרך "+ מתקן חדש".</div>';
-    } else {
-      list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center;font-size:12px;">לא נמצא ציוד ללקוח זה. הוסף אביזרים למאגר תחילה.</div>';
-    }
-    return;
-  }
-  list.innerHTML = accItems.map(function(e) {
-    var eId = String(e.id);
-    var checked = _selectedMultiAcc[eId] ? 'checked' : '';
-    var label = esc(typeLabel(e.type)) + ' | ' + esc(e.brand||'') + ' ' + esc(e.model||'') +
-      ' | מ.מ: ' + esc(e.serial_number||e.serial||'—') +
-      ' | SWL: ' + esc(e.mwp||'—') + ' ' + esc(e.mwp_unit||'');
-    return '<label class="flex fac gap2" style="padding:10px;border-bottom:1px solid var(--bdr);cursor:pointer;" data-equip-id="'+eId+'">' +
-      '<input type="checkbox" ' + checked + ' style="width:18px;height:18px">' +
-      '<span style="font-size:13px;">' + label + '</span>' +
-      '</label>';
-  }).join('');
-  // Attach checkbox events
-  ge('multi-acc-list').querySelectorAll('label[data-equip-id]').forEach(function(label) {
-    label.querySelector('input[type=checkbox]').addEventListener('change', function() {
-      toggleMultiAccItem(label.getAttribute('data-equip-id'), this.checked);
-    });
-  });
-}
-
-function toggleMultiAccItem(eId, checked) {
-  if(checked) {
-    var e = DB.equipment.find(function(x){ return String(x.id)===eId; });
-    if(!e) return;
-    _selectedMultiAcc[eId] = {
-      id: eId, serial: e.serial_number||e.serial||'—',
-      type: e.type, brand: e.brand||'', model: e.model||'',
-      mwp: (e.mwp||'—') + ' ' + (e.mwp_unit||''),
-      status: '', notes: ''
-    };
-  } else {
-    delete _selectedMultiAcc[eId];
-  }
-  renderMultiAccTable();
-}
-
-function renderMultiAccTable() {
-  var tbody = ge('multi-acc-table-body');
-  if(!tbody) return;
-  var items = Object.values(_selectedMultiAcc);
-  if(!items.length) {
-    tbody.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">בחר אביזרים מהרשימה למעלה</div>';
-    return;
-  }
-  var rows = items.map(function(item) {
-    var bg = item.status==='pass' ? 'background:#f0fdf4' : item.status==='fail' ? 'background:#fef2f2' : item.status==='na' ? 'background:#f8fafc' : '';
-    return '<div class="multi-acc-row" id="mar-' + item.id + '" style="display:grid;grid-template-columns:1fr 1fr 90px auto 1fr;gap:8px;padding:10px;border-bottom:1px solid var(--bdr);align-items:center;' + bg + '">' +
-      '<div style="font-size:12px;"><div style="font-weight:600">' + esc(item.serial) + '</div>' +
-        '<div style="color:var(--text3)">' + esc(item.brand) + ' ' + esc(item.model) + '</div></div>' +
-      '<div style="font-size:12px;">' + esc(typeLabel(item.type)) + '</div>' +
-      '<div style="font-size:12px;font-weight:600;" dir="ltr">' + esc(item.mwp) + '</div>' +
-      '<div class="flex gap1">' +
-        '<button class="btn btn-xs ' + (item.status==='pass'?'btn-success':'btn-secondary') + '" onclick="setMultiAccStatus(\'' + item.id + '\',\'pass\')">✓</button>' +
-        '<button class="btn btn-xs ' + (item.status==='fail'?'btn-danger':'btn-secondary') + '" onclick="setMultiAccStatus(\'' + item.id + '\',\'fail\')">✗</button>' +
-        '<button class="btn btn-xs ' + (item.status==='na'?'btn-primary':'btn-secondary') + '" onclick="setMultiAccStatus(\'' + item.id + '\',\'na\')">N/A</button>' +
-      '</div>' +
-      '<input type="text" class="form-input" style="font-size:12px;padding:4px 8px;" placeholder="הערה..." value="' + esc(item.notes) + '" onchange="setMultiAccNotes(\'' + item.id + '\',this.value)">' +
-    '</div>';
-  }).join('');
-
-  tbody.innerHTML =
-    '<div style="display:grid;grid-template-columns:1fr 1fr 90px auto 1fr;gap:8px;padding:8px 10px;background:var(--bg2);font-size:11px;font-weight:700;color:var(--text3);border-bottom:2px solid var(--bdr);">' +
-      '<div>זיהוי</div><div>סוג</div><div>SWL</div><div>סטטוס</div><div>הערה</div>' +
-    '</div>' + rows;
-}
-
-function setMultiAccStatus(eId, status) {
-  if(_selectedMultiAcc[eId]) {
-    _selectedMultiAcc[eId].status = status;
-    renderMultiAccTable();
-    if(status === 'fail') {
-      _currentDefectEquipId = eId;
-      openModal('addDefect');
-    }
-  }
-}
-
-function setMultiAccNotes(eId, notes) {
-  if(_selectedMultiAcc[eId]) _selectedMultiAcc[eId].notes = notes;
-}
-
 
 var _boilerChecklistOverride = null;
 
@@ -2839,8 +2664,6 @@ function toggleRepairDoc(show) {
 }
 
 let _currentDefects = []; // defects for current inspection
-let _currentDefectEquipId = null; // tracks accessory that triggered defect modal
-let _selectedMultiAcc = {}; // {equipId: {serial, type, mwp, status, notes}}
 function saveDefect() {
   const text = (ge('d-text')||{}).value?.trim();
   if(!text) { toast('הכנס תיאור ליקוי','error'); return; }
@@ -2853,18 +2676,19 @@ function saveDefect() {
     docRequired, repairDoc: (ge('d-repair-doc')||{}).value||'',
     status:'open', createdAt: new Date().toISOString().split('T')[0],
     clientId: (ge('i-client')||{}).value||null,
-    equipId: _currentDefectEquipId || (ge('i-equip')||{}).value || null,
+    equipId: (ge('i-equip')||{}).value||null,
     inspId: null,
   };
   _currentDefects.push(def);
+  DB.defects.push(def);
+  saveDB();
   renderCurrentDefects();
   closeModal('addDefect');
-  ['d-text','d-action','d-deadline','d-repair-doc'].forEach(function(id){ var el=ge(id); if(el) el.value=''; });
-  var noDoc = document.querySelector('input[name="d-doc-required"][value="no"]');
-  if(noDoc) noDoc.click();
-  var repSec = ge('repair-doc-section'); if(repSec) repSec.classList.add('hidden');
-  _currentDefectEquipId = null;
   toast('ליקוי נוסף ✅','success');
+  // Clear form
+  ['d-text','d-action','d-deadline','d-repair-doc'].forEach(id=>{ const el=ge(id); if(el) el.value=''; });
+  document.querySelector('input[name="d-doc-required"][value="no"]')?.click();
+  ge('repair-doc-section')?.classList.add('hidden');
 }
 
 function renderCurrentDefects() {
@@ -2879,7 +2703,7 @@ function renderCurrentDefects() {
           <div style="font-size:11px;color:var(--text3);margin-top:2px">פעולה: ${esc(d.action||'—')} · דד-ליין: ${fmt(d.deadline)}</div>
         </div>
         ${sevPill(d.severity)}
-        <button class="btn btn-danger btn-xs" onclick="var defId=_currentDefects[${i}]?.id; _currentDefects.splice(${i},1); if(defId) DB.defects=DB.defects.filter(function(x){return x.id!==defId;}); renderCurrentDefects();">✕</button>
+        <button class="btn btn-danger btn-xs" onclick="_currentDefects.splice(${i},1); renderCurrentDefects();">✕</button>
       </div>
       ${d.docRequired?`<div class="defect-repair-needed">📋 נדרש תיעוד תיקון${d.repairDoc?' – '+esc(d.repairDoc.substring(0,60)):''}</div>`:''}
     </div>`).join('');
@@ -3017,7 +2841,7 @@ function openReportView(id) {
 }
 
 function importPrevDefects(inspId) {
-  var defs=DB.defects.filter(function(d){return String(d.inspId||d.inspection_id)===String(inspId)&&d.status==='open';});
+  var defs=DB.defects.filter(function(d){return d.inspId===inspId&&d.status==='open';});
   if(!defs.length){toast('אין ליקויים פתוחים בתסקיר זה','warn');return;}
   var card=ge('prev-def-card');var list=ge('prev-def-list');
   if(!card||!list)return;
@@ -3026,28 +2850,206 @@ function importPrevDefects(inspId) {
     return '<div class="flex fac gap2" style="padding:10px 0;border-bottom:1px solid var(--bdr)">'+
       '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(d.text)+'</div>'+
       '<div style="font-size:11px;color:var(--text3)">'+esc(d.action||'?')+' · '+sevPill(d.severity)+'</div></div>'+
-      '<button class="btn btn-xs btn-danger" onclick="importOneDefect(\''+d.id+'\',this)">+ הוסף</button></div>';
+      '<button class="btn btn-xs btn-danger" onclick="importOneDefect('+d.id+',this)">+ הוסף</button></div>';
   }).join('');
   showInspTab(3);
   toast('נמצאו '+defs.length+' ליקויים פתוחים','info');
 }
 
 function importOneDefect(defId, btn) {
-  if(_currentDefects.find(function(d){return String(d.originId)===String(defId);})){toast('ליקוי זה כבר נוסף','warn');return;}
-  var orig=DB.defects.find(function(x){return String(x.id)===String(defId);});if(!orig)return;
-  var nd=Object.assign({},orig,{
-    id:genUUID(),originId:defId,status:'open',
+  if(_currentDefects.find(function(d){return d.originId===defId;})){toast('ליקוי זה כבר נוסף','warn');return;}
+  var orig=DB.defects.find(function(x){return x.id===defId;});if(!orig)return;
+  var nd=Object.assign({},orig,{id:nid('defect'),originId:defId,status:'open',
     createdAt:new Date().toISOString().split('T')[0],inspId:null,
-    clientId:(ge('i-client')||{}).value||orig.clientId,
-    equipId:(ge('i-equip')||{}).value||orig.equipId
-  });
-  _currentDefects.push(nd);
-  renderCurrentDefects();
+    clientId:parseInt((ge('i-client')||{}).value)||orig.clientId,
+    equipId:parseInt((ge('i-equip')||{}).value)||orig.equipId});
+  _currentDefects.push(nd);DB.defects.push(nd);saveDB();renderCurrentDefects();
   btn.textContent='✅';btn.disabled=true;btn.style.opacity='0.6';
-  toast('ליקוי הועתק לתסקיר','success');
+  toast('ליקוי יובא','success');
 }
 
+function filterEquipmentOverdue() {
+  navTo('equipment');
+  setTimeout(function(){
+    var results=DB.equipment.filter(function(e){return daysUntil(e.nextInsp)<0;});
+    renderEquipment(results);
+    toast(results.length+' מתקנים באיחור','warn');
+  },120);
+}
 
+function makeSR(targetId) {
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('תמלול חי דורש Chrome','warn');return null;}
+  var r=new SR();r.lang='he-IL';r.continuous=true;r.interimResults=true;
+  r.onresult=function(e){
+    var fin='',int_='';
+    for(var i=0;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript+' ';else int_+=e.results[i][0].transcript;}
+    var el=ge(targetId);
+    if(el){if(el.tagName==='TEXTAREA')el.value=fin+(int_?'['+int_+']':'');else el.textContent=fin+(int_?'['+int_+']':'');}
+  };
+  r.onerror=function(e){toast('שגיאת תמלול: '+e.error,'error');};
+  r.start();return r;
+}
+
+var _srMain=null;
+function toggleLiveSpeechMain(){
+  var btn=ge('live-speech-btn'),st=ge('live-speech-status');
+  if(_srMain){_srMain.stop();_srMain=null;if(btn){btn.textContent='🎙 תמלול חי';btn.classList.remove('btn-danger');}if(st)st.style.display='none';}
+  else{_srMain=makeSR('transcript-box');if(_srMain){if(btn){btn.textContent='⏹ עצור';btn.classList.add('btn-danger');}if(st)st.style.display='flex';toast('מתמלל...','info');}}
+}
+
+var _srNotes=null;
+function toggleLiveNotesRec(){
+  var btn=ge('notes-live-btn'),st=ge('notes-live-status');
+  if(_srNotes){_srNotes.stop();_srNotes=null;if(btn){btn.textContent='🎙 תמלול חי';btn.classList.remove('btn-danger');}if(st)st.style.display='none';}
+  else{_srNotes=makeSR('i-findings');if(_srNotes){if(btn){btn.textContent='⏹ עצור';btn.classList.add('btn-danger');}if(st)st.style.display='flex';toast('מתמלל...','info');}}
+}
+
+var _srDef=null;
+function toggleDefectLive(){
+  var btn=ge('def-live-btn'),st=ge('defect-live-status');
+  if(_srDef){_srDef.stop();_srDef=null;if(btn){btn.textContent='🎙';btn.style.background='';}if(st)st.style.display='none';}
+  else{_srDef=makeSR('d-text');if(_srDef){if(btn){btn.textContent='⏹';btn.style.background='var(--rl)';}if(st)st.style.display='flex';toast('מתמלל...','info');}}
+}
+
+function startVideoRec(){toast('הקלטת וידאו תתמך בגרסה הבאה','info');}
+
+async function markSent(id){
+  var i=DB.inspections.find(function(x){return String(x.id)===String(id);});if(!i)return;
+  var ownerEmail=i.ownerEmail||i.owner_email||'';
+  var supEmail=i.supEmail||i.supervisor_email||'';
+  var recipients=[ownerEmail,supEmail].filter(Boolean);
+  if(!recipients.length){toast('אין כתובת מייל לתסקיר זה','warn');return;}
+  var sb=getSB();
+  if(!sb)return;
+  toast('מייצר PDF ושולח...','info');
+  var filePath = await generateAndUploadPDF(id);
+  try {
+    var r = await sb.functions.invoke('swift-service', {
+      body: {
+        to: recipients,
+        subject: 'תסקיר בדיקה הנדסי - '+(i.inspection_num||i.num||''),
+        body: 'שלום רב, מצ"ב תסקיר בדיקה מספר '+(i.inspection_num||i.num||'')+'. תוצאה: '+i.result+'. בברכה, '+(i.inspector_name||i.inspector||'InspectPro'),
+      }
+    });
+    if(r.error) throw r.error;
+    await sb.from('inspections').update({is_sent:true}).eq('id',id);
+    await loadFromSupabase(_user.id);
+    renderReports();
+    toast('תסקיר נשלח בהצלחה! 📧','success');
+  } catch(err) {
+    console.error('שגיאה:', err);
+    toast('שגיאה בשליחה','error');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// BILLING
+// ════════════════════════════════════════════════════════
+function renderBilling() {
+  var invoices = (DB.inspections||[]).filter(function(i){return i.amount>0;});
+  var total = invoices.reduce(function(a,i){return a+(i.amount||0);},0);
+  ge('billing-stats').innerHTML=[
+    ['סה"כ הכנסות','₪'+total.toLocaleString(),'green'],
+    ['תסקירים',''+invoices.length,'blue'],
+  ].map(function(x){return '<div class="stat"><div class="stat-label">'+x[0]+'</div><div class="stat-value" style="color:var(--'+x[2]+')">'+x[1]+'</div></div>';}).join('');
+  ge('billing-tbl').innerHTML=invoices.map(function(i){
+    var cl = DB.clients.find(function(c){return c.id===i.clientId||c.id===i.client_id;})||{};
+    return '<tr><td>'+esc(cl.name||'—')+'</td>'+
+      '<td style="font-size:12px">'+fmt(i.date||i.inspection_date)+'</td>'+
+      '<td style="font-weight:700;font-family:IBM Plex Mono,monospace;color:var(--green)">₪'+(i.amount||0).toLocaleString()+'</td>'+
+      '<td>'+pill('שולם','green')+'</td>'+
+      '<td>—</td></tr>';
+  }).join('');
+}
+function markPaid(id){}
+
+// ════════════════════════════════════════════════════════
+// CALENDAR
+// ════════════════════════════════════════════════════════
+function renderCalendar() {
+  const upcoming=DB.equipment.filter(e=>daysUntil(e.nextInsp)<=90).sort((a,b)=>daysUntil(a.nextInsp)-daysUntil(b.nextInsp));
+  ge('cal-tbl').innerHTML=upcoming.map(e=>{
+    const d=daysUntil(e.nextInsp);
+    return `<tr>
+      <td><span>${typeIcon(e.type)}</span> ${esc(e.brand)} ${esc(e.model)}</td>
+      <td>${esc(cln(e.clientId))}</td>
+      <td style="font-size:12px">${fmt(e.nextInsp)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:${d<0?'var(--red)':d<=14?'var(--orange)':'var(--text3)'}">${d>0?'+':''}${d}</td>
+      <td>${eqStatusPill(e)}</td>
+      <td><button class="btn btn-primary btn-xs" onclick="startInspFor(${e.id})">בדוק</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// MODELS
+// ════════════════════════════════════════════════════════
+const MODELS_DB = [
+  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:'10 בר',freq:'14 חודשים',std:'פקודת הבטיחות תש"ל-1970; IS 60'},
+  {id:'bl-002',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:'12 בר',freq:'14 חודשים',std:'ASME Section I; IS 60'},
+  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:'2.5T',freq:'12 חודשים',std:'ISO 3691-1; EN 16307-1'},
+  {id:'fl-002',type:'forklift',brand:'Linde',model:'E20 (387)',mwp:'2.0T',freq:'12 חודשים',std:'ISO 3691-1; EN 16307-1'},
+  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:'11 בר',freq:'14 חודשים',std:'IS 60; PED 2014/68/EU'},
+  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:'10T',freq:'12 חודשים',std:'ISO 4301; EN 13001'},
+];
+
+function renderModels(data) {
+  const list = data || MODELS_DB;
+  ge('models-grid').innerHTML = list.map(m=>`
+    <div class="card" style="cursor:pointer" onclick="viewModel('${m.id}')">
+      <div class="card-header"><span>${typeIcon(m.type)}</span><h3>${esc(m.brand)} ${esc(m.model)}</h3></div>
+      <div class="card-body" style="font-size:12px">
+        <div class="mb2">⚡ ${esc(m.mwp)}</div>
+        <div class="mb2">📅 תדירות: ${esc(m.freq)}</div>
+        <div style="font-size:10px;color:var(--text3)">${esc(m.std)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterModels(q) {
+  const lq=(q||'').toLowerCase();
+  const results=MODELS_DB.filter(m=>!lq||[m.brand,m.model,m.type,m.std].join(' ').toLowerCase().includes(lq));
+  ge('models-grid').innerHTML=results.map(m=>`
+    <div class="card" style="cursor:pointer" onclick="viewModel('${m.id}')">
+      <div class="card-header"><span>${typeIcon(m.type)}</span><h3>${esc(m.brand)} ${esc(m.model)}</h3></div>
+      <div class="card-body" style="font-size:12px"><div class="mb2">${esc(m.mwp)}</div><div>${esc(m.freq)}</div></div>
+    </div>`).join('');
+}
+
+function viewModel(id) {
+  const m = MODELS_DB.find(x=>x.id===id);
+  if(!m) return;
+  ge('mdl-title').textContent = `${m.brand} ${m.model}`;
+  ge('mdl-body').innerHTML = `
+    <div class="g2 mb3">
+      <div><div class="text-muted mb2">סוג מתקן</div><strong>${typeLabel(m.type)}</strong></div>
+      <div><div class="text-muted mb2">לחץ / עומס</div><strong>${m.mwp}</strong></div>
+      <div><div class="text-muted mb2">תדירות בדיקה</div><strong>${m.freq}</strong></div>
+      <div><div class="text-muted mb2">תקן</div><div style="font-size:12px">${m.std}</div></div>
+    </div>`;
+  openModal('viewModel');
+}
+
+// ════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════
+function renderSettings() {
+  const s = DB.settings;
+  if(ge('s-name')) ge('s-name').value=s.name||'';
+  if(ge('s-lic')) ge('s-lic').value=s.lic||'';
+  if(ge('s-phone')) ge('s-phone').value=s.phone||'';
+  if(ge('s-email')) ge('s-email').value=s.email||'';
+}
+function saveSettings() {
+  DB.settings = { name:ge('s-name').value||'', lic:ge('s-lic').value||'', phone:ge('s-phone').value||'', email:ge('s-email').value||'' };
+  ge('sb-user').textContent = DB.settings.name + ' – בודק מוסמך';
+  saveDB(); toast('הגדרות נשמרו ✅','success');
+}
+
+// ════════════════════════════════════════════════════════
+// SUBMIT INSPECTION
+// ════════════════════════════════════════════════════════
 function setResult(r, btn) {
   document.querySelectorAll('#result-btns button').forEach(b=>{ b.style.fontWeight=''; b.style.boxShadow=''; });
   if(btn) { btn.style.fontWeight='900'; btn.style.boxShadow='0 0 0 3px rgba(26,86,219,.3)'; }
@@ -3056,12 +3058,10 @@ function setResult(r, btn) {
 }
 
 async function submitReport(doSend) {
-  var isMulti = (ge('i-insp-type')||{}).value === 'multi-acc';
   var eId = (ge('i-equip')||{}).value || null;
   var cId = (ge('i-client')||{}).value || null;
   if(!cId){toast('בחר לקוח','error');return;}
-  if(!isMulti && !eId){toast('בחר מתקן','error');return;}
-
+  if(!eId){toast('בחר מתקן','error');return;}
   var sb = getSB();
   var inspId = genUUID();
   var num = (ge('i-num')||{}).value || 'IR-'+new Date().getFullYear()+'-'+Math.floor(Math.random()*900+100);
@@ -3070,19 +3070,6 @@ async function submitReport(doSend) {
   var supEmail = (ge('i-supervisor-email')||{}).value||'';
   var sendOnSave = doSend || (ge('i-send-on-save') && ge('i-send-on-save').checked);
   var nextDate = (ge('i-valid-until')||{}).value||'';
-  var findingsText = (ge('i-findings')||{}).value||'';
-  // איסוף תמונות + העלאה ל-Storage
-  var photosRaw = [];
-  document.querySelectorAll('.media-thumb img').forEach(function(img){ photosRaw.push(img.src); });
-  document.querySelectorAll('.media-thumb video').forEach(function(vid){ if(vid.src) photosRaw.push(vid.src); });
-  var photos = [];
-  for(var pi=0; pi<photosRaw.length; pi++) {
-    var pUrl = photosRaw[pi].startsWith('data:')
-      ? await uploadPhotoToStorage(photosRaw[pi], num, pi)
-      : photosRaw[pi];
-    photos.push(pUrl);
-  }
-
   var inspData = {
     id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
     inspection_num: num,
@@ -3090,44 +3077,15 @@ async function submitReport(doSend) {
     inspection_type: (ge('i-insp-type')||{}).value||'periodic-14',
     result: result,
     inspector_name: (ge('i-inspector')||{}).value || (DB.settings&&DB.settings.name)||'',
-    score: (function(){ var v=parseInt((ge('i-score')||{}).value); return isNaN(v)?null:v; })(),
-    findings: findingsText,
+    score: parseInt((ge('i-score')||{}).value)||80,
+    findings: (ge('i-findings')||{}).value||'',
     checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
-    photos: photos,
     amount: parseInt((ge('i-amount')||{}).value)||0,
-    owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave,
-    multi_data: result === 'multi-acc' || (ge('i-insp-type')||{}).value === 'multi-acc'
-      ? Object.values(_selectedMultiAcc)
-      : null
+    owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
   };
-
-  // שמירה מקומית (כולל photos)
-  DB.inspections.push(inspData);
-  saveDB();
-
-  // 1. שמור תסקיר לענן (ללא photos - העמודה לא קיימת בסכמה)
-  var inspForCloud = Object.assign({}, inspData);
-  delete inspForCloud.photos;
-  delete inspForCloud.checklist_data; // not in Supabase schema
-  var r = await sb.from('inspections').insert(inspForCloud);
+  var r = await sb.from('inspections').insert(inspData);
   if(r.error){toast('שגיאה בשמירת תסקיר: '+r.error.message,'error');return;}
-
-  if(nextDate) {
-    if(isMulti) {
-      var accIds = Object.keys(_selectedMultiAcc);
-      for(var ai=0; ai<accIds.length; ai++) {
-        await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id', accIds[ai]);
-        var eqObj2 = DB.equipment.find(function(e){ return String(e.id)===String(accIds[ai]); });
-        if(eqObj2) eqObj2.nextInsp = nextDate;
-      }
-    } else if(eId) {
-      await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id', eId);
-      var eqObj = DB.equipment.find(function(e){ return String(e.id)===String(eId); });
-      if(eqObj) eqObj.nextInsp = nextDate;
-    }
-  }
-
-  // 2. שמור ליקויים עם ה-UUID הנכון של התסקיר
+  if(nextDate) await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id',eId);
   if(_currentDefects.length > 0) {
     var defectsData = _currentDefects.map(function(d){
       return { id:genUUID(), user_id:_user.id, client_id:cId, equipment_id:eId,
@@ -3138,17 +3096,15 @@ async function submitReport(doSend) {
     var dr = await sb.from('defects').insert(defectsData);
     if(dr.error) console.warn('שגיאה בשמירת ליקויים:', dr.error.message);
   }
-
-  // 3. נקה מצב נוכחי
   _currentDefects = [];
   if(DB.currentInsp) DB.currentInsp.checklist = {};
-  if(ge('i-findings')) ge('i-findings').value = '';
-  clearSig();
-
   await loadFromSupabase(_user.id);
-
-  if(sendOnSave && (ownerEmail||supEmail)){
-    markSent(inspId);
+  if(sendOnSave&&(ownerEmail||supEmail)){
+    var recipients=[ownerEmail,supEmail].filter(Boolean).join(',');
+    var subject=encodeURIComponent('תסקיר בדיקה '+num);
+    var body=encodeURIComponent('תסקיר '+num+' מצורף. תוצאה: '+result+' בדיקה הבאה: '+nextDate+' בברכה, '+inspData.inspector_name);
+    window.open('mailto:'+recipients+'?subject='+subject+'&body='+body,'_blank');
+    toast('תסקיר '+num+' נשמר ונשלח! 📧','success');
   } else {
     toast('תסקיר '+num+' נשמר! ✅','success');
   }
@@ -3157,244 +3113,94 @@ async function submitReport(doSend) {
 
 async function generateAndUploadPDF(inspId) {
   toast('מייצר תסקיר PDF...', 'info');
-
-  var insp = DB.inspections.find(function(i){ return String(i.id) === String(inspId); });
-  if(!insp) { toast('תסקיר לא נמצא', 'error'); return null; }
-
-  var eq = DB.equipment.find(function(e){ return String(e.id) === String(insp.equipment_id || insp.equipId); }) || {};
-  var cl = DB.clients.find(function(c){ return String(c.id) === String(insp.client_id || insp.clientId); }) || {};
-  var defs = DB.defects.filter(function(d){ return String(d.inspId || d.inspection_id) === String(inspId); });
-
-  var inspNum = insp.inspection_num || insp.num || '';
-  var isMultiAccPdf = (insp.inspection_type || insp.type) === 'multi-acc';
-  var multiData = insp.multi_data || [];
-
-  // חתימה מהגדרות
-  // חתימה: עדיפות לחתימה מה-Canvas הנוכחי, אחר כך מההגדרות
-  var sigImageHtml = '<div style="height:55px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;border-radius:4px;color:#999;font-size:11px;">(לא נחתם)</div>';
-  var sigCanvas = typeof ge === 'function' ? ge('sig-canvas') : null;
-  var usedSig = '';
-  if(sigCanvas && !isCanvasBlank(sigCanvas)) {
-    usedSig = sigCanvas.toDataURL('image/png');
-  } else if(DB.settings && DB.settings.signature) {
-    usedSig = DB.settings.signature;
+  var insp = DB.inspections.find(function(i){return String(i.id)===String(inspId);});
+  if(!insp){toast('תסקיר לא נמצא','error');return null;}
+  var eq = DB.equipment.find(function(e){return String(e.id)===String(insp.equipment_id||insp.equipId);})||{};
+  var cl = DB.clients.find(function(c){return String(c.id)===String(insp.client_id||insp.clientId);})||{};
+  var inspNum = insp.inspection_num||insp.num||'';
+  var sigCanvas = document.getElementById('sig-canvas');
+  var sigImageHtml = '';
+  if(sigCanvas) {
+    var sigData = sigCanvas.toDataURL('image/png');
+    sigImageHtml = '<img src="'+sigData+'" style="max-height:80px;display:block;margin:10px auto;" />';
   }
-  if(usedSig) {
-    sigImageHtml = '<img src="' + usedSig + '" style="max-height:65px;display:block;margin:0 auto;max-width:220px;" />';
+    // ── ליקויים ב-PDF ──
+  var inspIdStr = String(inspId||'');
+  var defs = (DB.defects||[]).filter(function(d){return String(d.inspId||d.inspection_id)===inspIdStr;});
+  var defsHtml = '';
+  if(defs.length){
+    defsHtml = '<div style="margin-top:20px;"><div style="font-weight:800;font-size:13px;color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:6px;margin-bottom:10px;">⚠️ ליקויים שנמצאו ('+defs.length+')</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">'+
+    '<thead><tr style="background:#f5f7fb;"><th style="padding:6px;border:1px solid #dde3ef;text-align:right;">תיאור</th><th style="padding:6px;border:1px solid #dde3ef;width:80px;">חומרה</th><th style="padding:6px;border:1px solid #dde3ef;width:100px;">דד-ליין</th></tr></thead><tbody>'+
+    defs.map(function(d){
+      var sev=d.severity==='critical'?'קריטי':d.severity==='medium'?'בינוני':'קל';
+      var col=d.severity==='critical'?'#dc2626':d.severity==='medium'?'#d97706':'#059669';
+      return '<tr><td style="padding:6px;border:1px solid #dde3ef;">'+(d.text||'')+'</td><td style="padding:6px;border:1px solid #dde3ef;color:'+col+';font-weight:700;text-align:center;">'+sev+'</td><td style="padding:6px;border:1px solid #dde3ef;text-align:center;">'+(d.deadline||'—')+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
   }
-
-  var findingsText = (insp.findings || '').trim();
-  var findingsHtml = findingsText ? esc(findingsText).replace(/\n/g, '<br>') : 'המתקן נבדק ונמצא תקין. לא נרשמו הערות מיוחדות.';
-
-  var defectsHtml = '';
-  if(defs.length > 0) {
-    var defRows = defs.map(function(d, idx) {
-      var sev = d.severity==='critical'?'🔴 קריטי':(d.severity==='medium'?'🟡 בינוני':'🟢 קל');
-      return '<tr>' +
-        '<td style="padding:10px;border:1px solid #c4cede;">'+(idx+1)+'</td>' +
-        '<td style="padding:10px;border:1px solid #c4cede;font-weight:bold;">'+esc(d.text)+'</td>' +
-        '<td style="padding:10px;border:1px solid #c4cede;">'+sev+'</td>' +
-        '<td style="padding:10px;border:1px solid #c4cede;">'+esc(d.required_action||d.action||'—')+'</td>' +
-        '<td style="padding:10px;border:1px solid #c4cede;">'+fmt(d.deadline)+'</td>' +
-        '</tr>';
-    }).join('');
-    defectsHtml =
-      '<div style="margin-top:30px;">' +
-        '<h4 style="background:#fee2e2;color:#991b1b;padding:10px 15px;margin:0;border:1px solid #fecaca;border-radius:8px 8px 0 0;font-size:15px;">ליקויים ופעולות לתיקון ('+defs.length+')</h4>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #fecaca;text-align:right;">' +
-          '<tr style="background:#fef2f2;">' +
-            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:5%;">#</th>' +
-            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:35%;">תיאור הליקוי</th>' +
-            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:15%;">חומרה</th>' +
-            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:25%;">פעולה נדרשת</th>' +
-            '<th style="padding:10px;border:1px solid #fecaca;text-align:right;width:20%;">דד-ליין</th>' +
-          '</tr>' +
-          defRows +
-        '</table>' +
-      '</div>';
-  }
-
-  var resultColor = insp.result==='approved'?'#059669':insp.result==='rejected'?'#dc2626':'#d97706';
-  var resultText  = insp.result==='approved'?'✅ אושר לשימוש':insp.result==='rejected'?'🚫 נפסל לשימוש!':'⚠️ אושר בתנאים';
-  var inspectorName = esc(insp.inspector_name||insp.inspector||(DB.settings&&DB.settings.name?DB.settings.name:'בודק מוסמך'));
-  var licStr = (DB.settings&&DB.settings.lic)?'מ.ר. '+DB.settings.lic:'בודק מוסמך';
-
+  var statusColor=insp.result==='approved'?'#059669':insp.result==='rejected'?'#dc2626':'#d97706';
+  var statusText=insp.result==='approved'?'אושר לשימוש':insp.result==='rejected'?'לא אושר':'אושר בתנאי';
   var htmlContent =
-    '<div id="pdf-wrapper" style="padding:35px 45px;font-family:Arial,Helvetica,sans-serif;direction:rtl;text-align:right;color:#1a1a1a;background:#fff;width:794px;line-height:1.5;word-spacing:normal;letter-spacing:normal;">' +
-
-    // ── Header ──
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a56db;padding-bottom:14px;margin-bottom:24px;">' +
-      '<div>' +
-        '<h1 style="margin:0;color:#1e3a8a;font-size:26px;font-weight:900;letter-spacing:-0.5px;">תסקיר בטיחות הנדסי</h1>' +
-        '<div style="margin-top:6px;color:#64748b;font-size:15px;">מספר תסקיר: <span dir="ltr" style="font-family:Courier New,monospace;font-weight:700;color:#1e3a8a;">'+inspNum+'</span></div>' +
-      '</div>' +
-      '<div style="text-align:left;background:#f8fafc;padding:10px 20px;border-radius:8px;border:1px solid #e2e8f0;">' +
-        '<div style="font-size:20px;font-weight:900;color:#1a56db;">InspectPro</div>' +
-        '<div style="font-size:11px;color:#64748b;margin-top:3px;">תאריך הפקה: '+new Date().toLocaleDateString("he-IL")+'</div>' +
-      '</div>' +
-    '</div>' +
-
-    // ── Client + Equipment ──
-    '<div style="display:flex;gap:16px;margin-bottom:20px;">' +
-      '<div style="flex:1;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
-        '<div style="background:#f1f5f9;padding:8px 14px;font-weight:700;color:#1e3a8a;font-size:13px;border-bottom:1px solid #e2e8f0;">🏢 פרטי הלקוח</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-          '<tr><td style="padding:6px 12px;color:#64748b;width:80px;white-space:nowrap;">שם חברה</td><td style="padding:6px 12px;font-weight:600;">'+esc(cl.name||'—')+'</td></tr>' +
-          '<tr style="background:#fafafa"><td style="padding:6px 12px;color:#64748b;white-space:nowrap;">כתובת</td><td style="padding:6px 12px;">'+esc(cl.address||'—')+'</td></tr>' +
-          '<tr><td style="padding:6px 12px;color:#64748b;white-space:nowrap;">איש קשר</td><td style="padding:6px 12px;">'+esc(cl.contact_name||cl.contact||'—')+'</td></tr>' +
-          '<tr style="background:#fafafa"><td style="padding:6px 12px;color:#64748b;white-space:nowrap;">טלפון</td><td style="padding:6px 12px;" dir="ltr">'+esc(cl.phone||'—')+'</td></tr>' +
-        '</table>' +
-      '</div>' +
-      '<div style="flex:1;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
-        '<div style="background:#f1f5f9;padding:8px 14px;font-weight:700;color:#1e3a8a;font-size:13px;border-bottom:1px solid #e2e8f0;">⚙️ פרטי המתקן</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-          '<tr><td style="padding:6px 12px;color:#64748b;width:80px;white-space:nowrap;">סוג מתקן</td><td style="padding:6px 12px;font-weight:600;">'+typeLabel(eq.type)+'</td></tr>' +
-          '<tr style="background:#fafafa"><td style="padding:6px 12px;color:#64748b;white-space:nowrap;">יצרן ודגם</td><td style="padding:6px 12px;">'+esc(eq.brand||'')+' '+esc(eq.model||'')+'</td></tr>' +
-          '<tr><td style="padding:6px 12px;color:#64748b;white-space:nowrap;">מ.מ.</td><td style="padding:6px 12px;" dir="ltr">'+esc(eq.serial_number||eq.serial||'—')+'</td></tr>' +
-          '<tr style="background:#fafafa"><td style="padding:6px 12px;color:#64748b;white-space:nowrap;">מיקום</td><td style="padding:6px 12px;">'+esc(eq.location||'—')+'</td></tr>' +
-        '</table>' +
-      '</div>' +
-    '</div>' +
-
-    // ── Inspection Results ──
-    '<div style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:20px;overflow:hidden;">' +
-      '<div style="background:#f1f5f9;padding:8px 14px;font-weight:700;color:#1e3a8a;font-size:13px;border-bottom:1px solid #e2e8f0;">📊 תוצאות הבדיקה</div>' +
-      '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-        '<tr>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;color:#64748b;width:22%;white-space:nowrap;">תאריך בדיקה</td>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;width:28%;font-weight:600;">'+fmt(insp.inspection_date||insp.date)+'</td>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;color:#64748b;width:22%;white-space:nowrap;">בדיקה הבאה</td>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;width:28%;font-weight:600;">'+fmt(insp.next_inspection_date||insp.nextDate)+'</td>' +
-        '</tr>' +
-        '<tr>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;color:#64748b;white-space:nowrap;">לחץ/עומס מאושר</td>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;font-weight:600;" dir="ltr">'+esc(insp.mwp||eq.mwp||'—')+'</td>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;color:#64748b;white-space:nowrap;">סוג בדיקה</td>' +
-          '<td style="padding:9px 12px;border-bottom:1px solid #f0f0f0;">'+inspTypeLabel(insp.inspection_type||insp.type)+'</td>' +
-        '</tr>' +
-        '<tr>' +
-          '<td style="padding:10px 12px;color:#64748b;white-space:nowrap;">סטטוס סופי</td>' +
-          '<td colspan="3" style="padding:10px 12px;font-size:15px;font-weight:700;color:'+resultColor+';">'+resultText+'</td>' +
-        '</tr>' +
-      '</table>' +
-    '</div>' +
-
-    // ── Multi-acc table (replaces checklist for multi-acc) ──
-    (isMultiAccPdf && multiData.length > 0 ?
-      '<div style="margin-top:20px;page-break-inside:avoid;">' +
-        '<div style="font-weight:700;color:#1e3a8a;font-size:13px;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;">📦 טבלת אביזרי הרמה</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:right;">' +
-          '<tr style="background:#f1f5f9;">' +
-            '<th style="padding:8px;border:1px solid #e2e8f0;">מ.מ</th>' +
-            '<th style="padding:8px;border:1px solid #e2e8f0;">סוג</th>' +
-            '<th style="padding:8px;border:1px solid #e2e8f0;">SWL</th>' +
-            '<th style="padding:8px;border:1px solid #e2e8f0;">סטטוס</th>' +
-            '<th style="padding:8px;border:1px solid #e2e8f0;">הערה</th>' +
-          '</tr>' +
-          multiData.map(function(item) {
-            var stColor = item.status==='pass'?'#059669':item.status==='fail'?'#dc2626':'#64748b';
-            var stText  = item.status==='pass'?'✓ תקין':item.status==='fail'?'✗ ליקוי':item.status==='na'?'N/A':'—';
-            var rowBg   = item.status==='fail'?'background:#fef2f2':item.status==='pass'?'background:#f0fdf4':'';
-            return '<tr style="'+rowBg+'">' +
-              '<td style="padding:8px;border:1px solid #e2e8f0;font-family:monospace;">'+esc(item.serial||'—')+'</td>' +
-              '<td style="padding:8px;border:1px solid #e2e8f0;">'+esc(typeLabel(item.type))+'</td>' +
-              '<td style="padding:8px;border:1px solid #e2e8f0;" dir="ltr">'+esc(item.mwp||'—')+'</td>' +
-              '<td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;color:'+stColor+';">'+stText+'</td>' +
-              '<td style="padding:8px;border:1px solid #e2e8f0;">'+esc(item.notes||'')+'</td>' +
-            '</tr>';
-          }).join('') +
-        '</table>' +
-      '</div>'
-    : checklistHtml) +
-
-    // ── Findings ──
-    '<div style="margin-bottom:20px;page-break-inside:avoid;">' +
-      '<div style="font-weight:700;color:#1e3a8a;font-size:13px;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;">📝 ממצאים והערות כלליות</div>' +
-      '<div style="background:#f8fafc;padding:12px 16px;border-radius:6px;border:1px solid #e2e8f0;font-size:13px;line-height:1.7;white-space:pre-wrap;">'+findingsHtml+'</div>' +
-    '</div>' +
-
-    defectsHtml +
-    photosHtml +
-
-    // ── Signature ──
-    '<div style="margin-top:50px;display:flex;justify-content:space-between;align-items:flex-end;page-break-inside:avoid;">' +
-      '<div style="font-size:11px;color:#94a3b8;line-height:1.6;">מסמך זה הופק אלקטרונית באמצעות<br>InspectPro - מערכת לניהול בדיקות בטיחות</div>' +
-      '<div style="text-align:center;width:230px;">' +
-        sigImageHtml +
-        '<div style="border-top:1.5px solid #334155;padding-top:7px;margin-top:8px;">' +
-          '<div style="font-size:15px;font-weight:700;color:#1e293b;">'+inspectorName+'</div>' +
-          '<div style="font-size:12px;color:#64748b;margin-top:2px;">'+licStr+'</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
-
-    '</div>';
-
-    var tempContainer = document.createElement('div');
-  tempContainer.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;visibility:hidden;';
-  tempContainer.innerHTML = htmlContent;
-  document.body.appendChild(tempContainer);
-
-  var elementToPrint = tempContainer.querySelector('#pdf-wrapper');
-
+    '<div style="direction:rtl;text-align:right;font-family:Arial,sans-serif;color:#111;background:#fff;padding:30px;">'+
+    '<div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:18px 22px;border-radius:10px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;">'+
+    '<div><div style="font-size:20px;font-weight:900;">InspectPro</div><div style="font-size:12px;opacity:0.8;">מערכת ניהול בדיקות הנדסיות</div></div>'+
+    '<div style="text-align:left;"><div style="font-size:16px;font-weight:700;">תסקיר בטיחות הנדסי</div><div style="font-size:12px;opacity:0.8;">מספר: '+inspNum+'</div></div></div>'+
+    '<div style="background:'+statusColor+';color:#fff;padding:12px;border-radius:8px;font-size:16px;font-weight:900;text-align:center;margin-bottom:18px;">'+statusText+'</div>'+
+    '<div style="display:flex;gap:14px;margin-bottom:18px;">'+
+    '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;padding:12px;">'+
+    '<div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">פרטי הלקוח</div>'+
+    '<div style="font-size:11px;line-height:1.9;"><b>שם:</b> '+(cl.name||'—')+'<br><b>כתובת:</b> '+(cl.address||'—')+'<br><b>איש קשר:</b> '+(cl.contact_name||cl.contact||'—')+'</div></div>'+
+    '<div style="flex:1;border:1px solid #dde3ef;border-radius:8px;padding:12px;">'+
+    '<div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">פרטי המתקן</div>'+
+    '<div style="font-size:11px;line-height:1.9;"><b>סוג:</b> '+(eq.type||'—')+'<br><b>יצרן ודגם:</b> '+(eq.brand||'')+' '+(eq.model||'')+'<br><b>מ.מ:</b> '+(eq.serial_number||eq.serial||'—')+'</div></div></div>'+
+    '<div style="border:1px solid #dde3ef;border-radius:8px;padding:12px;margin-bottom:18px;">'+
+    '<div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">פרטי הבדיקה</div>'+
+    '<div style="display:flex;gap:30px;font-size:11px;line-height:1.9;">'+
+    '<div><b>בודק:</b> '+(insp.inspector_name||insp.inspector||'—')+'<br><b>תאריך:</b> '+(insp.inspection_date||insp.date||'—')+'<br><b>סוג בדיקה:</b> '+(insp.inspection_type||insp.type||'—')+'</div>'+
+    '<div><b>בדיקה הבאה:</b> '+(insp.next_inspection_date||insp.nextDate||'—')+'<br><b>ציון:</b> '+(insp.score||'—')+'%<br><b>סכום:</b> '+(insp.amount?'NIS '+insp.amount.toLocaleString():'—')+'</div></div></div>'+
+    (insp.findings?'<div style="border:1px solid #dde3ef;border-radius:8px;padding:12px;margin-bottom:18px;"><div style="font-weight:800;font-size:12px;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px;">ממצאים והערות</div><div style="font-size:11px;white-space:pre-wrap;line-height:1.8;">'+insp.findings+'</div></div>':'')+
+    defsHtml+
+    '<div style="margin-top:28px;border-top:1px solid #dde3ef;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end;">'+
+    '<div style="text-align:center;min-width:180px;">'+sigImageHtml+'<div style="border-top:1px solid #111;padding-top:6px;font-size:11px;color:#6b7280;margin-top:4px;">חתימת הבודק המוסמך</div></div>'+
+    '<div style="font-size:10px;color:#9ca3af;text-align:left;">הופק ע"י InspectPro<br>'+new Date().toLocaleDateString('he-IL')+'</div>'+
+    '</div></div>';
+var tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlContent;
+  tempDiv.style.position = 'absolute';
+  tempDiv.style.left = '-9999px';
+  document.body.appendChild(tempDiv);
   var opt = {
-    margin: [10, 10, 10, 10],
-    filename: inspNum + '.pdf',
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    margin:10, filename:inspNum+'.pdf',
+    image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true,willReadFrequently:true},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
   };
-
   try {
-    // השהייה לאחר רינדור
-    await new Promise(function(resolve){ setTimeout(resolve, 300); });
-
-    var pdfBlob = await html2pdf().set(opt).from(elementToPrint).output('blob');
-    document.body.removeChild(tempContainer);
-
+    var pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
+    document.body.removeChild(tempDiv);
     var blobUrl = URL.createObjectURL(pdfBlob);
     window.open(blobUrl, '_blank');
-
-    var fileName = _user.id + '/' + inspNum + '_' + Date.now() + '.pdf';
+    // פתיחת PDF מיד בלשונית חדשה
+    var blobUrl = URL.createObjectURL(pdfBlob);
+    window.open(blobUrl, '_blank');
+    var fileName = _user.id+'/'+inspNum+'_'+Date.now()+'.pdf';
     var sb = getSB();
     var r = await sb.storage.from('reports').upload(fileName, pdfBlob, {contentType:'application/pdf'});
     if(r.error) throw r.error;
-
-    toast('PDF הופק ונשמר! 📄', 'success');
+    toast('PDF נשמר בענן ✅','success');
     return fileName;
   } catch(err) {
-    if(document.body.contains(tempContainer)) document.body.removeChild(tempContainer);
-    toast('שגיאה ביצירת PDF', 'error');
+    if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+    toast('שגיאה ביצירת PDF','error');
     console.error(err);
     return null;
   }
 }
 
 
-
-function isCanvasBlank(canvas) {
-  var blank = document.createElement('canvas');
-  blank.width = canvas.width;
-  blank.height = canvas.height;
-  return canvas.toDataURL() === blank.toDataURL();
-}
-
-
 // ════════════════════════════════════════════════════════
 // ADD EQUIPMENT MODAL
 // ════════════════════════════════════════════════════════
-function openAddEquipFromInsp() {
-  _editingEquipId = null;
-  openModal('addEquip');
-  setTimeout(function() {
-    var cId = ge('i-client') ? ge('i-client').value : '';
-    if(cId && ge('eq-client')) {
-      ge('eq-client').value = cId;
-      ge('eq-client').dispatchEvent(new Event('change'));
-    }
-  }, 50);
-}
-
 function populateEqClientSelect() {
   const sel = ge('eq-client');
   if(!sel) return;
@@ -3836,50 +3642,23 @@ function startLiveSpeech(targetId){return makeSR(targetId);}
 // ════════════════════════════════════════════════════════
 // SIGNATURE
 // ════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════
-// SIGNATURE
-// ════════════════════════════════════════════════════════
-function attachSignatureEvents(canvasId) {
-  const canvas = ge(canvasId);
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  function resize() {
-    const rect = canvas.parentElement.getBoundingClientRect();
-    if(rect.width > 0 && canvas.width !== rect.width) {
-      const temp = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      canvas.width = rect.width;
-      canvas.height = 140;
-      ctx.putImageData(temp, 0, 0);
-    }
-  }
-  window.addEventListener('resize', resize);
-
-  setTimeout(function() {
-    canvas.width = canvas.parentElement.offsetWidth || 400;
-    canvas.height = 140;
-  }, 100);
-
-  let drawing=false, lx=0, ly=0;
-  function getSigPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const touch = e.touches ? e.touches[0] : e;
-    return { x: touch.clientX - r.left, y: touch.clientY - r.top };
-  }
-  canvas.addEventListener('mousedown', e => { drawing=true; const p=getSigPos(e); lx=p.x; ly=p.y; });
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getSigPos(e); lx=p.x; ly=p.y; });
-  canvas.addEventListener('mousemove', e => { if(!drawing) return; const p=getSigPos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.strokeStyle='#1a56db'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.stroke(); lx=p.x; ly=p.y; });
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing) return; const p=getSigPos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.strokeStyle='#1a56db'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.stroke(); lx=p.x; ly=p.y; });
-  ['mouseup','mouseleave','touchend'].forEach(ev => canvas.addEventListener(ev, () => drawing=false));
-}
-
 function initSig() {
-  attachSignatureEvents('sig-canvas');
-  attachSignatureEvents('settings-sig-canvas');
+  const canvas=ge('sig-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;
+  let drawing=false,lx=0,ly=0;
+  function getSigPos(e){
+    const r=canvas.getBoundingClientRect();
+    const touch=e.touches?e.touches[0]:e;
+    return{x:touch.clientX-r.left,y:touch.clientY-r.top};
+  }
+  canvas.addEventListener('mousedown',e=>{drawing=true;const p=getSigPos(e);lx=p.x;ly=p.y;});
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getSigPos(e);lx=p.x;ly=p.y;});
+  canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getSigPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#1a56db';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();lx=p.x;ly=p.y;});
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getSigPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#1a56db';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();lx=p.x;ly=p.y;});
+  ['mouseup','mouseleave','touchend'].forEach(ev=>canvas.addEventListener(ev,()=>drawing=false));
 }
-
-function clearSig() { const c=ge('sig-canvas'); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
-function clearSettingsSig() { const c=ge('settings-sig-canvas'); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
+function clearSig(){const c=ge('sig-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
 
 // ════════════════════════════════════════════════════════
 // MODALS
@@ -3899,7 +3678,6 @@ function openModal(id) {
   if(id==='camera') {} // handled separately
 }
 function closeModal(id) {
-  if(id==='addDefect') _currentDefectEquipId = null;
   const modal=ge('modal-'+id);
   if(modal) modal.classList.remove('open');
 }
@@ -3933,37 +3711,6 @@ function resetDB() { localStorage.removeItem(DB_KEY); location.reload(); }
 // ════════════════════════════════════════════════════════
 // POPULATE SELECTS ON INSPECTION PAGE
 // ════════════════════════════════════════════════════════
-function resetInspectionForm() {
-  _currentDefects = [];
-  _selectedMultiAcc = {};
-  renderCurrentDefects();
-  if(DB.currentInsp) DB.currentInsp = {checklist:{}};
-  ['i-client','i-equip','i-po','i-findings','i-score','i-amount',
-   'i-owner-email','i-supervisor-email'].forEach(function(id){ var el=ge(id); if(el) el.value=''; });
-  var today = new Date().toISOString().split('T')[0];
-  if(ge('i-date')) ge('i-date').value = today;
-  if(ge('i-valid-until')) ge('i-valid-until').value = '';
-  ['main-media-grid','critical-media-grid','notes-media-content','defect-media-grid','repair-media-grid'].forEach(function(gid){
-    var g=ge(gid); if(g) g.querySelectorAll('.media-thumb').forEach(function(el){el.remove();});
-  });
-  clearSig();
-  showInspTab(0);
-  // Reset multi-acc UI
-  var multiCard = ge('multi-acc-select-card'); if(multiCard) multiCard.style.display='none';
-  var multiTable = ge('multi-acc-table-container'); if(multiTable) multiTable.style.display='none';
-  var clContainer = ge('checklist-container'); if(clContainer) clContainer.style.display='';
-  var equipRow = ge('i-equip') ? ge('i-equip').closest('.form-group') : null;
-  if(equipRow) equipRow.style.display='';
-  autoGenInspNum();
-  if(DB.settings && DB.settings.name && ge('i-inspector') && !ge('i-inspector').value)
-    ge('i-inspector').value = DB.settings.name;
-  document.querySelectorAll('#result-btns button').forEach(function(b){b.style.fontWeight='';b.style.boxShadow='';});
-  var iResult=ge('i-result'); if(iResult) iResult.value='';
-  var cc=ge('checklist-container');
-  if(cc) cc.innerHTML='<div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן לטעינת רשימת בדיקה</div>';
-  var piCard=ge('prev-insp-card'); if(piCard) piCard.style.display='none';
-}
-
 function populateInspSelects() {
   const cSel=ge('i-client');
   if(cSel) {
@@ -3995,6 +3742,68 @@ function checkMobile(){
 }
 window.addEventListener('resize',checkMobile);
 
+// ════════════════════════════════════════════════════════
+// INSPECTORS (מפקחי עבודה)
+// ════════════════════════════════════════════════════════
+function renderInspectors() {
+  var tbody = ge('inspectors-tbl');
+  if(!tbody) return;
+  var list = DB.regionalInspectors || [];
+  tbody.innerHTML = list.length ? list.map(function(ins,i){
+    return '<tr>'+
+      '<td style="font-weight:600">'+esc(ins.name)+'</td>'+
+      '<td>'+esc(ins.region||'—')+'</td>'+
+      '<td dir="ltr">'+esc(ins.email||'—')+'</td>'+
+      '<td dir="ltr">'+esc(ins.phone||'—')+'</td>'+
+      '<td><button class="btn btn-danger btn-xs" onclick="deleteInspector('+i+')">מחק</button></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">אין מפקחים עדיין</td></tr>';
+  populateInspectorSelect();
+}
+
+function openAddInspectorModal() { openModal('addInspector'); }
+
+function saveInspector() {
+  var name = (ge('insp-name')||{}).value.trim();
+  var email = (ge('insp-email')||{}).value.trim();
+  if(!name||!email){toast('נא למלא שם ואימייל','error');return;}
+  if(!DB.regionalInspectors) DB.regionalInspectors = [];
+  DB.regionalInspectors.push({
+    name: name,
+    region: (ge('insp-region')||{}).value||'',
+    email: email,
+    phone: (ge('insp-phone')||{}).value||''
+  });
+  try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
+  closeModal('addInspector');
+  renderInspectors();
+  toast(name+' נוסף ✅','success');
+  ['insp-name','insp-region','insp-email','insp-phone'].forEach(function(id){var el=ge(id);if(el)el.value='';});
+}
+
+function deleteInspector(idx) {
+  if(!confirm('מחק מפקח זה?')) return;
+  DB.regionalInspectors.splice(idx,1);
+  try{localStorage.setItem(DB_KEY, JSON.stringify(DB));}catch(e){}
+  renderInspectors();
+}
+
+function populateInspectorSelect() {
+  var sel = ge('i-supervisor-select');
+  if(!sel) return;
+  var list = DB.regionalInspectors || [];
+  sel.innerHTML = '<option value="">בחר מפקח...</option>' +
+    list.map(function(ins){
+      return '<option value="'+esc(ins.email)+'">'+esc(ins.name)+' – '+esc(ins.region||'')+'</option>';
+    }).join('');
+}
+
+function onInspectorSelect() {
+  var sel = ge('i-supervisor-select');
+  var emailField = ge('i-supervisor-email');
+  if(sel && emailField) emailField.value = sel.value;
+}
+
 function toggleProfileMenu() {
   var m = ge('profile-menu');
   if (!m) return;
@@ -4024,7 +3833,10 @@ document.addEventListener('click', function(e) {
 window.addEventListener('DOMContentLoaded', function() {
   var sb = getSB();
 
-  // uses global showLoginScreen()
+  function showLoginScreen() {
+    document.getElementById('login-wrap').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
 
   async function checkSession() {
     try {
@@ -4056,219 +3868,7 @@ window.addEventListener('DOMContentLoaded', function() {
   if (ge('i-date')) { ge('i-date').value=today; ge('i-date').addEventListener('change', calcNextInspDate); }
   if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
 });
-
-// ════════════════════════════════════════════════════════
-// SPEECH RECOGNITION (Live Transcription)
-// ════════════════════════════════════════════════════════
-function makeSR(targetId) {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ toast('תמלול חי דורש Chrome','warn'); return null; }
-  var r = new SR();
-  r.lang = 'he-IL';
-  r.continuous = true;
-  r.interimResults = true;
-  var _finalText = ''; // accumulates only final results
-  r.onresult = function(e) {
-    var newFinal = '', interim = '';
-    // Use e.resultIndex to avoid processing old results (fixes triple-word bug)
-    for(var i = e.resultIndex; i < e.results.length; i++) {
-      if(e.results[i].isFinal) newFinal += e.results[i][0].transcript + ' ';
-      else interim += e.results[i][0].transcript;
-    }
-    _finalText += newFinal;
-    var el = ge(targetId);
-    if(el) {
-      var display = _finalText + (interim ? '[' + interim + ']' : '');
-      if(el.tagName === 'TEXTAREA') el.value = display;
-      else el.textContent = display;
-    }
-  };
-  r.onerror = function(e) { toast('שגיאת תמלול: ' + e.error, 'error'); };
-  r.start();
-  return r;
-}
-
-var _srMain = null;
-function toggleLiveSpeechMain() {
-  var btn = ge('live-speech-btn'), st = ge('live-speech-status');
-  if(_srMain) {
-    _srMain.stop(); _srMain = null;
-    if(btn) { btn.textContent = '🎙 תמלול חי'; btn.classList.remove('btn-danger'); }
-    if(st) st.style.display = 'none';
-  } else {
-    _srMain = makeSR('transcript-box');
-    if(_srMain) {
-      if(btn) { btn.textContent = '⏹ עצור'; btn.classList.add('btn-danger'); }
-      if(st) st.style.display = 'flex';
-    }
-  }
-}
-
-var _srNotes = null;
-function toggleLiveNotesRec() {
-  var btn = ge('notes-live-btn'), st = ge('notes-live-status');
-  if(_srNotes) {
-    _srNotes.stop(); _srNotes = null;
-    if(btn) { btn.textContent = '🎙 תמלול חי'; btn.classList.remove('btn-danger'); }
-    if(st) st.style.display = 'none';
-  } else {
-    _srNotes = makeSR('i-findings');
-    if(_srNotes) {
-      if(btn) { btn.textContent = '⏹ עצור'; btn.classList.add('btn-danger'); }
-      if(st) st.style.display = 'flex';
-    }
-  }
-}
-
-var _srDef = null;
-function toggleDefectLive() {
-  var btn = ge('def-live-btn'), st = ge('defect-live-status');
-  if(_srDef) {
-    _srDef.stop(); _srDef = null;
-    if(btn) { btn.textContent = '🎙'; btn.style.background = ''; }
-    if(st) st.style.display = 'none';
-  } else {
-    _srDef = makeSR('d-text');
-    if(_srDef) {
-      if(btn) { btn.textContent = '⏹'; btn.style.background = 'var(--red)'; }
-      if(st) st.style.display = 'flex';
-    }
-  }
-}
-
-
-async function uploadPhotoToStorage(base64Data, inspNum, idx) {
-  try {
-    var sb = getSB();
-    if(!sb || !_user) return base64Data;
-    var byteStr = atob(base64Data.split(',')[1]);
-    var ab = new ArrayBuffer(byteStr.length);
-    var ia = new Uint8Array(ab);
-    for(var i=0;i<byteStr.length;i++) ia[i]=byteStr.charCodeAt(i);
-    var blob = new Blob([ab], {type:'image/jpeg'});
-    var path = _user.id+'/'+inspNum+'/photo_'+idx+'_'+Date.now()+'.jpg';
-    var res = await sb.storage.from('reports').upload(path, blob, {contentType:'image/jpeg'});
-    if(res.error) return base64Data;
-    var urlRes = sb.storage.from('reports').getPublicUrl(path);
-    return (urlRes.data && urlRes.data.publicUrl) ? urlRes.data.publicUrl : base64Data;
-  } catch(e) { return base64Data; }
-}
-
-
-// ════════════════════════════════════════════════════════
-// MODELS DATABASE
-// ════════════════════════════════════════════════════════
-const MODELS_DB = [
-  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:'10 בר',freq:'14 חודשים',std:'תקן IS 60'},
-  {id:'bl-002',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:'12 בר',freq:'14 חודשים',std:'ASME Section I'},
-  {id:'bl-003',type:'boiler',brand:'Fulton',model:'ICS-60',mwp:'8 בר',freq:'14 חודשים',std:'ASME Section I'},
-  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:'2.5 טון',freq:'12 חודשים',std:'ISO 3691-1'},
-  {id:'fl-002',type:'forklift',brand:'Linde',model:'E20 (387)',mwp:'2.0 טון',freq:'12 חודשים',std:'ISO 3691-1'},
-  {id:'fl-003',type:'forklift',brand:'Crown',model:'FC 5200',mwp:'3.0 טון',freq:'12 חודשים',std:'ISO 3691-1'},
-  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:'11 בר',freq:'14 חודשים',std:'תקן IS 60'},
-  {id:'ac-002',type:'air-collector',brand:'Ingersoll Rand',model:'UP6-25',mwp:'13 בר',freq:'14 חודשים',std:'תקן IS 60'},
-  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:'10 טון',freq:'12 חודשים',std:'EN 13001'},
-  {id:'cb-002',type:'crane-bridge',brand:'Konecranes',model:'CXT 16',mwp:'16 טון',freq:'12 חודשים',std:'EN 13001'},
-  {id:'el-001',type:'elevator',brand:'Otis',model:'Gen2 Premier',mwp:'1000 ק"ג',freq:'6 חודשים',std:'EN 81-20'},
-  {id:'el-002',type:'elevator',brand:'Kone',model:'MonoSpace 700',mwp:'1275 ק"ג',freq:'6 חודשים',std:'EN 81-20'},
-  {id:'sc-001',type:'steam-collector',brand:'Spirax Sarco',model:'VT 52',mwp:'16 בר',freq:'14 חודשים',std:'תקן IS 60'},
-  {id:'ap-001',type:'aerial-platform',brand:'Genie',model:'GS-3369',mwp:'454 ק"ג',freq:'12 חודשים',std:'EN 280'},
-  {id:'ap-002',type:'aerial-platform',brand:'JLG',model:'1930ES',mwp:'227 ק"ג',freq:'12 חודשים',std:'EN 280'},
-];
-
-function renderModels(data) {
-  var list = data || MODELS_DB;
-  var grid = ge('models-grid');
-  if(!grid) return;
-  if(!list || !list.length) {
-    grid.innerHTML = '<div class="text-muted" style="padding:40px;text-align:center;">לא נמצאו דגמים</div>';
-    return;
-  }
-  grid.innerHTML = list.map(function(m) {
-    return '<div class="card" style="cursor:pointer" data-model-id="'+esc(m.id)+'">' +
-      '<div class="card-header"><span>'+typeIcon(m.type)+'</span><h3>'+esc(m.brand)+' '+esc(m.model)+'</h3></div>' +
-      '<div class="card-body" style="font-size:12px;">' +
-        '<div class="mb2">⚡ '+esc(m.mwp)+'</div>' +
-        '<div class="mb2">📅 '+esc(m.freq)+'</div>' +
-        '<div style="color:var(--text3);font-size:11px;">'+esc(m.std)+'</div>' +
-      '</div></div>';
-  }).join('');
-  grid.querySelectorAll('[data-model-id]').forEach(function(el) {
-    el.addEventListener('click', function() { viewModel(this.getAttribute('data-model-id')); });
-  });
-}
-
-function filterModels(q) {
-  var lq = (q||'').toLowerCase();
-  var results = MODELS_DB.filter(function(m) {
-    return !lq || [m.brand, m.model, m.type, m.std, m.mwp].join(' ').toLowerCase().includes(lq);
-  });
-  renderModels(results);
-}
-
-function viewModel(id) {
-  var m = MODELS_DB.find(function(x){ return x.id===id; });
-  if(!m) return;
-  var modal = document.createElement('div');
-  modal.className = 'overlay open';
-  modal.innerHTML =
-    '<div class="modal" style="max-width:480px;">' +
-    '<div class="modal-header"><span>'+typeIcon(m.type)+'</span><h3>'+esc(m.brand)+' '+esc(m.model)+'</h3>' +
-    '<button class="modal-close" id="vm-x">✕</button></div>' +
-    '<div class="modal-body">' +
-      '<div class="g2">' +
-        '<div><div style="color:var(--text3);font-size:11px;">סוג מתקן</div><div style="font-weight:600;">'+typeLabel(m.type)+'</div></div>' +
-        '<div><div style="color:var(--text3);font-size:11px;">עומס/לחץ</div><div style="font-weight:600;">'+esc(m.mwp)+'</div></div>' +
-        '<div><div style="color:var(--text3);font-size:11px;">תדירות בדיקה</div><div style="font-weight:600;">'+esc(m.freq)+'</div></div>' +
-        '<div><div style="color:var(--text3);font-size:11px;">תקן</div><div style="font-weight:600;">'+esc(m.std)+'</div></div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="modal-footer"><button class="btn btn-secondary" id="vm-cl">סגור</button></div>' +
-    '</div>';
-  var close = function(){ modal.remove(); };
-  modal.addEventListener('click', function(e){ if(e.target===modal) close(); });
-  modal.querySelector('#vm-x').addEventListener('click', close);
-  modal.querySelector('#vm-cl').addEventListener('click', close);
-  document.body.appendChild(modal);
-}
-
-
-// ── Quick start for multi-acc inspection ──
-function startMultiAccInsp() {
-  navTo('inspection');
-  setTimeout(function() {
-    var sel = ge('i-insp-type');
-    if(sel) {
-      sel.value = 'multi-acc';
-      onInspTypeChange();
-      // Scroll to client selector
-      var cSel = ge('i-client');
-      if(cSel) cSel.focus();
-      toast('בחר לקוח ואז סמן אביזרים לבדיקה 📦','info');
-    }
-  }, 200);
-}
-
 </script>
 
-
-  <!-- Modal: Add Checklist Group -->
-  <div class="overlay" id="modal-addChecklistGroup">
-    <div class="modal" style="max-width:400px">
-      <div class="modal-header"><span>📁</span><h3>קבוצת בדיקה חדשה</h3>
-        <button class="modal-close" onclick="closeModal('addChecklistGroup')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>שם הקבוצה</label>
-          <input type="text" id="new-cl-group-name" placeholder="לדוגמה: בדיקת מערכת הידראולית...">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('addChecklistGroup')">ביטול</button>
-        <button class="btn btn-primary" onclick="confirmAddChecklistSection()">💾 הוסף קבוצה</button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
