@@ -487,6 +487,16 @@ button{cursor:pointer;}
                   <button class="btn btn-secondary btn-xs" style="white-space:nowrap" onclick="openAddEquipFromInsp()">+ חדש</button>
                 </div>
               </div>
+              <!-- Multi-acc selection (shown only for multi-acc type) -->
+              <div id="multi-acc-select-card" class="card mb3" style="display:none;border:2px solid var(--blue);border-radius:var(--r2);">
+                <div class="card-header" style="background:var(--blue-bg)"><span>📦</span><h3>בחר אביזרי הרמה לבדיקה</h3></div>
+                <div class="card-body">
+                  <div id="multi-acc-list" style="max-height:260px;overflow-y:auto;">
+                    <div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה</div>
+                  </div>
+                </div>
+              </div>
+
               <div class="form-group mb3">
                 <label>סוג מתקן</label>
                 <select id="i-type" onchange="updateChecklist()">
@@ -606,6 +616,9 @@ button{cursor:pointer;}
                     <option value="follow-up">ביקור חוזר</option>
                     <option value="other">אחר</option>
                   </optgroup>
+                  <optgroup label="📦 בדיקה מרוכזת">
+                    <option value="multi-acc">בדיקה מרוכזת – אביזרי הרמה</option>
+                  </optgroup>
                   <optgroup label="דוד קיטור" id="boiler-options" style="display:none">
                     <option value="boiler-cold">דוד קיטור – בדיקה קרה</option>
                     <option value="boiler-hot">דוד קיטור – בדיקה חמה (תחת לחץ)</option>
@@ -651,6 +664,11 @@ button{cursor:pointer;}
           <div class="card-body">
             <div id="checklist-container">
               <div class="text-muted" style="text-align:center;padding:24px">בחר סוג מתקן בשלב הקודם לטעינת רשימת בדיקה</div>
+            </div>
+            <!-- Fast-fill table for multi-acc inspection -->
+            <div id="multi-acc-table-container" style="display:none;">
+              <div class="alert alert-info mb3" style="font-size:12px;">סמן כל אביזר: ✅ תקין / ❌ ליקוי / N/A לא רלוונטי</div>
+              <div id="multi-acc-table-body"></div>
             </div>
           </div>
         </div>
@@ -2007,6 +2025,13 @@ function onClientChange() {
     if(ge('i-phone'))   ge('i-phone').value   = cl.phone||'';
     if(ge('i-owner-email') && cl.email) ge('i-owner-email').value = cl.email;
   }
+
+  // Fix 1: clear multi-acc state on client swap
+  _selectedMultiAcc = {};
+  if((ge('i-insp-type')||{}).value === 'multi-acc') {
+    renderMultiAccList();
+    renderMultiAccTable();
+  }
 }
 
 function onEquipChange() {
@@ -2533,19 +2558,133 @@ const CHECKLISTS = {
 
 function onInspTypeChange() {
   calcNextInspDate();
-  // Update checklist based on inspection type for boilers
   const inspType = (ge('i-insp-type')||{}).value || '';
+  const isMultiAcc = inspType === 'multi-acc';
+
+  // Toggle single vs multi-acc UI
+  var equipRow = ge('i-equip') ? ge('i-equip').closest('.form-group') : null;
+  if(equipRow) equipRow.style.display = isMultiAcc ? 'none' : '';
+  var multiCard = ge('multi-acc-select-card');
+  if(multiCard) multiCard.style.display = isMultiAcc ? '' : 'none';
+  var clContainer = ge('checklist-container');
+  if(clContainer) clContainer.style.display = isMultiAcc ? 'none' : '';
+  var multiTable = ge('multi-acc-table-container');
+  if(multiTable) multiTable.style.display = isMultiAcc ? '' : 'none';
+
+  if(isMultiAcc) {
+    renderMultiAccList();
+    renderMultiAccTable();
+    return;
+  }
+
+  // Boiler sub-type checklist logic
   const eqType = (ge('i-type')||{}).value || '';
   if(eqType === 'boiler' && inspType.startsWith('boiler-')) {
     const map = {'boiler-cold':'boiler','boiler-hot':'boiler-hot','boiler-hydro':'boiler-hydro'};
-    const clKey = map[inspType] || 'boiler';
-    // Temporarily override checklist type for display
-    _boilerChecklistOverride = clKey;
+    _boilerChecklistOverride = map[inspType] || 'boiler';
   } else {
     _boilerChecklistOverride = null;
   }
   updateChecklist();
 }
+
+// ════════════════════════════════════════════════════════
+// MULTI-ACC INSPECTION
+// ════════════════════════════════════════════════════════
+var ACC_TYPES = ['chain','hook','sling-textile','sling-wire','spreader-beam'];
+
+function renderMultiAccList() {
+  var list = ge('multi-acc-list');
+  if(!list) return;
+  var cId = (ge('i-client')||{}).value;
+  if(!cId) { list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה</div>'; return; }
+  var accItems = DB.equipment.filter(function(e){
+    return String(e.clientId||e.client_id) === String(cId) && ACC_TYPES.includes(e.type);
+  });
+  if(!accItems.length) {
+    list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">לא נמצאו אביזרי הרמה ללקוח זה</div>';
+    return;
+  }
+  list.innerHTML = accItems.map(function(e) {
+    var eId = String(e.id);
+    var checked = _selectedMultiAcc[eId] ? 'checked' : '';
+    var label = esc(typeLabel(e.type)) + ' | ' + esc(e.brand||'') + ' ' + esc(e.model||'') +
+      ' | מ.מ: ' + esc(e.serial_number||e.serial||'—') +
+      ' | SWL: ' + esc(e.mwp||'—') + ' ' + esc(e.mwp_unit||'');
+    return '<label class="flex fac gap2" style="padding:10px;border-bottom:1px solid var(--bdr);cursor:pointer;" data-equip-id="'+eId+'">' +
+      '<input type="checkbox" ' + checked + '>' +
+      '<span style="font-size:13px;">' + label + '</span>' +
+      '</label>';
+  }).join('');
+  // Attach checkbox events via delegation
+  ge('multi-acc-list').querySelectorAll('label[data-equip-id]').forEach(function(label) {
+    label.querySelector('input[type=checkbox]').addEventListener('change', function() {
+      toggleMultiAccItem(label.getAttribute('data-equip-id'), this.checked);
+    });
+  });
+}
+
+function toggleMultiAccItem(eId, checked) {
+  if(checked) {
+    var e = DB.equipment.find(function(x){ return String(x.id)===eId; });
+    if(!e) return;
+    _selectedMultiAcc[eId] = {
+      id: eId, serial: e.serial_number||e.serial||'—',
+      type: e.type, brand: e.brand||'', model: e.model||'',
+      mwp: (e.mwp||'—') + ' ' + (e.mwp_unit||''),
+      status: '', notes: ''
+    };
+  } else {
+    delete _selectedMultiAcc[eId];
+  }
+  renderMultiAccTable();
+}
+
+function renderMultiAccTable() {
+  var tbody = ge('multi-acc-table-body');
+  if(!tbody) return;
+  var items = Object.values(_selectedMultiAcc);
+  if(!items.length) {
+    tbody.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">בחר אביזרים מהרשימה למעלה</div>';
+    return;
+  }
+  var rows = items.map(function(item) {
+    var bg = item.status==='pass' ? 'background:#f0fdf4' : item.status==='fail' ? 'background:#fef2f2' : item.status==='na' ? 'background:#f8fafc' : '';
+    return '<div class="multi-acc-row" id="mar-' + item.id + '" style="display:grid;grid-template-columns:1fr 1fr 90px auto 1fr;gap:8px;padding:10px;border-bottom:1px solid var(--bdr);align-items:center;' + bg + '">' +
+      '<div style="font-size:12px;"><div style="font-weight:600">' + esc(item.serial) + '</div>' +
+        '<div style="color:var(--text3)">' + esc(item.brand) + ' ' + esc(item.model) + '</div></div>' +
+      '<div style="font-size:12px;">' + esc(typeLabel(item.type)) + '</div>' +
+      '<div style="font-size:12px;font-weight:600;" dir="ltr">' + esc(item.mwp) + '</div>' +
+      '<div class="flex gap1">' +
+        '<button class="btn btn-xs ' + (item.status==='pass'?'btn-success':'btn-secondary') + '" onclick="setMultiAccStatus(\'' + item.id + '\',\'pass\')">✓</button>' +
+        '<button class="btn btn-xs ' + (item.status==='fail'?'btn-danger':'btn-secondary') + '" onclick="setMultiAccStatus(\'' + item.id + '\',\'fail\')">✗</button>' +
+        '<button class="btn btn-xs ' + (item.status==='na'?'btn-primary':'btn-secondary') + '" onclick="setMultiAccStatus(\'' + item.id + '\',\'na\')">N/A</button>' +
+      '</div>' +
+      '<input type="text" class="form-input" style="font-size:12px;padding:4px 8px;" placeholder="הערה..." value="' + esc(item.notes) + '" onchange="setMultiAccNotes(\'' + item.id + '\',this.value)">' +
+    '</div>';
+  }).join('');
+
+  tbody.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr 90px auto 1fr;gap:8px;padding:8px 10px;background:var(--bg2);font-size:11px;font-weight:700;color:var(--text3);border-bottom:2px solid var(--bdr);">' +
+      '<div>זיהוי</div><div>סוג</div><div>SWL</div><div>סטטוס</div><div>הערה</div>' +
+    '</div>' + rows;
+}
+
+function setMultiAccStatus(eId, status) {
+  if(_selectedMultiAcc[eId]) {
+    _selectedMultiAcc[eId].status = status;
+    renderMultiAccTable();
+    if(status === 'fail') {
+      _currentDefectEquipId = eId;
+      openModal('addDefect');
+    }
+  }
+}
+
+function setMultiAccNotes(eId, notes) {
+  if(_selectedMultiAcc[eId]) _selectedMultiAcc[eId].notes = notes;
+}
+
 
 var _boilerChecklistOverride = null;
 
@@ -2639,6 +2778,8 @@ function toggleRepairDoc(show) {
 }
 
 let _currentDefects = []; // defects for current inspection
+let _currentDefectEquipId = null; // tracks accessory that triggered defect modal
+let _selectedMultiAcc = {}; // {equipId: {serial, type, mwp, status, notes}}
 function saveDefect() {
   const text = (ge('d-text')||{}).value?.trim();
   if(!text) { toast('הכנס תיאור ליקוי','error'); return; }
@@ -2651,7 +2792,7 @@ function saveDefect() {
     docRequired, repairDoc: (ge('d-repair-doc')||{}).value||'',
     status:'open', createdAt: new Date().toISOString().split('T')[0],
     clientId: (ge('i-client')||{}).value||null,
-    equipId: (ge('i-equip')||{}).value||null,
+    equipId: _currentDefectEquipId || (ge('i-equip')||{}).value || null,
     inspId: null,
   };
   _currentDefects.push(def);
@@ -2661,6 +2802,7 @@ function saveDefect() {
   var noDoc = document.querySelector('input[name="d-doc-required"][value="no"]');
   if(noDoc) noDoc.click();
   var repSec = ge('repair-doc-section'); if(repSec) repSec.classList.add('hidden');
+  _currentDefectEquipId = null;
   toast('ליקוי נוסף ✅','success');
 }
 
@@ -2853,10 +2995,11 @@ function setResult(r, btn) {
 }
 
 async function submitReport(doSend) {
+  var isMulti = (ge('i-insp-type')||{}).value === 'multi-acc';
   var eId = (ge('i-equip')||{}).value || null;
   var cId = (ge('i-client')||{}).value || null;
   if(!cId){toast('בחר לקוח','error');return;}
-  if(!eId){toast('בחר מתקן','error');return;}
+  if(!isMulti && !eId){toast('בחר מתקן','error');return;}
 
   var sb = getSB();
   var inspId = genUUID();
@@ -2879,7 +3022,7 @@ async function submitReport(doSend) {
     photos.push(pUrl);
   }
 
-    var inspData = {
+  var inspData = {
     id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
     inspection_num: num,
     inspection_date: (ge('i-date')||{}).value || new Date().toISOString().split('T')[0],
@@ -2891,14 +3034,37 @@ async function submitReport(doSend) {
     checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
     photos: photos,
     amount: parseInt((ge('i-amount')||{}).value)||0,
-    owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
+    owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave,
+    multi_data: result === 'multi-acc' || (ge('i-insp-type')||{}).value === 'multi-acc'
+      ? Object.values(_selectedMultiAcc)
+      : null
   };
 
-  // 1. שמור תסקיר
-  var r = await sb.from('inspections').insert(inspData);
+  // שמירה מקומית (כולל photos)
+  DB.inspections.push(inspData);
+  saveDB();
+
+  // 1. שמור תסקיר לענן (ללא photos - העמודה לא קיימת בסכמה)
+  var inspForCloud = Object.assign({}, inspData);
+  delete inspForCloud.photos;
+  delete inspForCloud.checklist_data; // not in Supabase schema
+  var r = await sb.from('inspections').insert(inspForCloud);
   if(r.error){toast('שגיאה בשמירת תסקיר: '+r.error.message,'error');return;}
 
-  if(nextDate) await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id',eId);
+  if(nextDate) {
+    if(isMulti) {
+      var accIds = Object.keys(_selectedMultiAcc);
+      for(var ai=0; ai<accIds.length; ai++) {
+        await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id', accIds[ai]);
+        var eqObj2 = DB.equipment.find(function(e){ return String(e.id)===String(accIds[ai]); });
+        if(eqObj2) eqObj2.nextInsp = nextDate;
+      }
+    } else if(eId) {
+      await sb.from('equipment').update({next_inspection_date:nextDate}).eq('id', eId);
+      var eqObj = DB.equipment.find(function(e){ return String(e.id)===String(eId); });
+      if(eqObj) eqObj.nextInsp = nextDate;
+    }
+  }
 
   // 2. שמור ליקויים עם ה-UUID הנכון של התסקיר
   if(_currentDefects.length > 0) {
@@ -2939,6 +3105,8 @@ async function generateAndUploadPDF(inspId) {
   var defs = DB.defects.filter(function(d){ return String(d.inspId || d.inspection_id) === String(inspId); });
 
   var inspNum = insp.inspection_num || insp.num || '';
+  var isMultiAccPdf = (insp.inspection_type || insp.type) === 'multi-acc';
+  var multiData = insp.multi_data || [];
 
   // חתימה מהגדרות
   // חתימה: עדיפות לחתימה מה-Canvas הנוכחי, אחר כך מההגדרות
@@ -3050,7 +3218,33 @@ async function generateAndUploadPDF(inspId) {
       '</table>' +
     '</div>' +
 
-    checklistHtml +
+    // ── Multi-acc table (replaces checklist for multi-acc) ──
+    (isMultiAccPdf && multiData.length > 0 ?
+      '<div style="margin-top:20px;page-break-inside:avoid;">' +
+        '<div style="font-weight:700;color:#1e3a8a;font-size:13px;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;">📦 טבלת אביזרי הרמה</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:right;">' +
+          '<tr style="background:#f1f5f9;">' +
+            '<th style="padding:8px;border:1px solid #e2e8f0;">מ.מ</th>' +
+            '<th style="padding:8px;border:1px solid #e2e8f0;">סוג</th>' +
+            '<th style="padding:8px;border:1px solid #e2e8f0;">SWL</th>' +
+            '<th style="padding:8px;border:1px solid #e2e8f0;">סטטוס</th>' +
+            '<th style="padding:8px;border:1px solid #e2e8f0;">הערה</th>' +
+          '</tr>' +
+          multiData.map(function(item) {
+            var stColor = item.status==='pass'?'#059669':item.status==='fail'?'#dc2626':'#64748b';
+            var stText  = item.status==='pass'?'✓ תקין':item.status==='fail'?'✗ ליקוי':item.status==='na'?'N/A':'—';
+            var rowBg   = item.status==='fail'?'background:#fef2f2':item.status==='pass'?'background:#f0fdf4':'';
+            return '<tr style="'+rowBg+'">' +
+              '<td style="padding:8px;border:1px solid #e2e8f0;font-family:monospace;">'+esc(item.serial||'—')+'</td>' +
+              '<td style="padding:8px;border:1px solid #e2e8f0;">'+esc(typeLabel(item.type))+'</td>' +
+              '<td style="padding:8px;border:1px solid #e2e8f0;" dir="ltr">'+esc(item.mwp||'—')+'</td>' +
+              '<td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;color:'+stColor+';">'+stText+'</td>' +
+              '<td style="padding:8px;border:1px solid #e2e8f0;">'+esc(item.notes||'')+'</td>' +
+            '</tr>';
+          }).join('') +
+        '</table>' +
+      '</div>'
+    : checklistHtml) +
 
     // ── Findings ──
     '<div style="margin-bottom:20px;page-break-inside:avoid;">' +
@@ -3644,6 +3838,7 @@ function openModal(id) {
   if(id==='camera') {} // handled separately
 }
 function closeModal(id) {
+  if(id==='addDefect') _currentDefectEquipId = null;
   const modal=ge('modal-'+id);
   if(modal) modal.classList.remove('open');
 }
@@ -3679,6 +3874,7 @@ function resetDB() { localStorage.removeItem(DB_KEY); location.reload(); }
 // ════════════════════════════════════════════════════════
 function resetInspectionForm() {
   _currentDefects = [];
+  _selectedMultiAcc = {};
   renderCurrentDefects();
   if(DB.currentInsp) DB.currentInsp = {checklist:{}};
   ['i-client','i-equip','i-po','i-findings','i-score','i-amount',
@@ -3691,6 +3887,12 @@ function resetInspectionForm() {
   });
   clearSig();
   showInspTab(0);
+  // Reset multi-acc UI
+  var multiCard = ge('multi-acc-select-card'); if(multiCard) multiCard.style.display='none';
+  var multiTable = ge('multi-acc-table-container'); if(multiTable) multiTable.style.display='none';
+  var clContainer = ge('checklist-container'); if(clContainer) clContainer.style.display='';
+  var equipRow = ge('i-equip') ? ge('i-equip').closest('.form-group') : null;
+  if(equipRow) equipRow.style.display='';
   autoGenInspNum();
   if(DB.settings && DB.settings.name && ge('i-inspector') && !ge('i-inspector').value)
     ge('i-inspector').value = DB.settings.name;
@@ -3889,6 +4091,84 @@ async function uploadPhotoToStorage(base64Data, inspNum, idx) {
     var urlRes = sb.storage.from('reports').getPublicUrl(path);
     return (urlRes.data && urlRes.data.publicUrl) ? urlRes.data.publicUrl : base64Data;
   } catch(e) { return base64Data; }
+}
+
+
+// ════════════════════════════════════════════════════════
+// MODELS DATABASE
+// ════════════════════════════════════════════════════════
+const MODELS_DB = [
+  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:'10 בר',freq:'14 חודשים',std:'תקן IS 60'},
+  {id:'bl-002',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:'12 בר',freq:'14 חודשים',std:'ASME Section I'},
+  {id:'bl-003',type:'boiler',brand:'Fulton',model:'ICS-60',mwp:'8 בר',freq:'14 חודשים',std:'ASME Section I'},
+  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:'2.5 טון',freq:'12 חודשים',std:'ISO 3691-1'},
+  {id:'fl-002',type:'forklift',brand:'Linde',model:'E20 (387)',mwp:'2.0 טון',freq:'12 חודשים',std:'ISO 3691-1'},
+  {id:'fl-003',type:'forklift',brand:'Crown',model:'FC 5200',mwp:'3.0 טון',freq:'12 חודשים',std:'ISO 3691-1'},
+  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:'11 בר',freq:'14 חודשים',std:'תקן IS 60'},
+  {id:'ac-002',type:'air-collector',brand:'Ingersoll Rand',model:'UP6-25',mwp:'13 בר',freq:'14 חודשים',std:'תקן IS 60'},
+  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:'10 טון',freq:'12 חודשים',std:'EN 13001'},
+  {id:'cb-002',type:'crane-bridge',brand:'Konecranes',model:'CXT 16',mwp:'16 טון',freq:'12 חודשים',std:'EN 13001'},
+  {id:'el-001',type:'elevator',brand:'Otis',model:'Gen2 Premier',mwp:'1000 ק"ג',freq:'6 חודשים',std:'EN 81-20'},
+  {id:'el-002',type:'elevator',brand:'Kone',model:'MonoSpace 700',mwp:'1275 ק"ג',freq:'6 חודשים',std:'EN 81-20'},
+  {id:'sc-001',type:'steam-collector',brand:'Spirax Sarco',model:'VT 52',mwp:'16 בר',freq:'14 חודשים',std:'תקן IS 60'},
+  {id:'ap-001',type:'aerial-platform',brand:'Genie',model:'GS-3369',mwp:'454 ק"ג',freq:'12 חודשים',std:'EN 280'},
+  {id:'ap-002',type:'aerial-platform',brand:'JLG',model:'1930ES',mwp:'227 ק"ג',freq:'12 חודשים',std:'EN 280'},
+];
+
+function renderModels(data) {
+  var list = data || MODELS_DB;
+  var grid = ge('models-grid');
+  if(!grid) return;
+  if(!list || !list.length) {
+    grid.innerHTML = '<div class="text-muted" style="padding:40px;text-align:center;">לא נמצאו דגמים</div>';
+    return;
+  }
+  grid.innerHTML = list.map(function(m) {
+    return '<div class="card" style="cursor:pointer" data-model-id="'+esc(m.id)+'">' +
+      '<div class="card-header"><span>'+typeIcon(m.type)+'</span><h3>'+esc(m.brand)+' '+esc(m.model)+'</h3></div>' +
+      '<div class="card-body" style="font-size:12px;">' +
+        '<div class="mb2">⚡ '+esc(m.mwp)+'</div>' +
+        '<div class="mb2">📅 '+esc(m.freq)+'</div>' +
+        '<div style="color:var(--text3);font-size:11px;">'+esc(m.std)+'</div>' +
+      '</div></div>';
+  }).join('');
+  grid.querySelectorAll('[data-model-id]').forEach(function(el) {
+    el.addEventListener('click', function() { viewModel(this.getAttribute('data-model-id')); });
+  });
+}
+
+function filterModels(q) {
+  var lq = (q||'').toLowerCase();
+  var results = MODELS_DB.filter(function(m) {
+    return !lq || [m.brand, m.model, m.type, m.std, m.mwp].join(' ').toLowerCase().includes(lq);
+  });
+  renderModels(results);
+}
+
+function viewModel(id) {
+  var m = MODELS_DB.find(function(x){ return x.id===id; });
+  if(!m) return;
+  var modal = document.createElement('div');
+  modal.className = 'overlay open';
+  modal.innerHTML =
+    '<div class="modal" style="max-width:480px;">' +
+    '<div class="modal-header"><span>'+typeIcon(m.type)+'</span><h3>'+esc(m.brand)+' '+esc(m.model)+'</h3>' +
+    '<button class="modal-close" id="vm-x">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="g2">' +
+        '<div><div style="color:var(--text3);font-size:11px;">סוג מתקן</div><div style="font-weight:600;">'+typeLabel(m.type)+'</div></div>' +
+        '<div><div style="color:var(--text3);font-size:11px;">עומס/לחץ</div><div style="font-weight:600;">'+esc(m.mwp)+'</div></div>' +
+        '<div><div style="color:var(--text3);font-size:11px;">תדירות בדיקה</div><div style="font-weight:600;">'+esc(m.freq)+'</div></div>' +
+        '<div><div style="color:var(--text3);font-size:11px;">תקן</div><div style="font-weight:600;">'+esc(m.std)+'</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn btn-secondary" id="vm-cl">סגור</button></div>' +
+    '</div>';
+  var close = function(){ modal.remove(); };
+  modal.addEventListener('click', function(e){ if(e.target===modal) close(); });
+  modal.querySelector('#vm-x').addEventListener('click', close);
+  modal.querySelector('#vm-cl').addEventListener('click', close);
+  document.body.appendChild(modal);
 }
 
 </script>
