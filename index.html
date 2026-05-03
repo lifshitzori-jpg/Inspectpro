@@ -1393,6 +1393,23 @@ async function loadFromSupabase(userId) {
     console.error('loadFromSupabase error:', e);
     DB = seed();
   }
+  // Load user settings from Supabase
+  try {
+    var sbS = getSB();
+    if(sbS && userId) {
+      var setRes = await sbS.from('user_settings').select('settings_json').eq('user_id', userId).single();
+      if(setRes.data && setRes.data.settings_json) {
+        DB.settings = setRes.data.settings_json;
+        if(DB.settings.custom_checklists) {
+          Object.keys(DB.settings.custom_checklists).forEach(function(k){
+            if(typeof CHECKLISTS !== 'undefined') CHECKLISTS[k] = DB.settings.custom_checklists[k];
+          });
+        }
+      }
+    }
+  } catch(eS) {
+    try { var lsDB=JSON.parse(localStorage.getItem(DB_KEY)||'{}'); if(lsDB.settings) DB.settings=lsDB.settings; } catch(e2){}
+  }
   initAppAfterLogin();
 }
 
@@ -1945,18 +1962,25 @@ function showInspTab(idx) {
     setTimeout(function() {
       var c = ge('sig-canvas');
       if(!c) return;
-      if(c.width === 0 || c.height === 0 || c.width === 300) {
-        c.width = c.parentElement.offsetWidth || 400;
-        c.height = 140;
-      }
-      // מלא חתימה מהגדרות אם הקנבס ריק
-      if(isCanvasBlank(c) && DB.settings && DB.settings.signature) {
+      // Force canvas to get correct dimensions from visible parent
+      var parent = c.parentElement;
+      var w = parent ? parent.offsetWidth : 0;
+      if(w < 10) w = 380; // fallback for mobile
+      c.width  = w;
+      c.height = 140;
+      c.style.width  = '100%';
+      c.style.height = '140px';
+      // מלא חתימה אוטומטית מהגדרות
+      if(DB.settings && DB.settings.signature) {
         var ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, c.width, c.height);
         var img = new Image();
-        img.onload = function() { ctx.drawImage(img, 0, 0, c.width, c.height); };
+        img.onload = function() {
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+        };
         img.src = DB.settings.signature;
       }
-    }, 80);
+    }, 120);
   }
 }
 
@@ -2633,11 +2657,11 @@ function saveDefect() {
   _currentDefects.push(def);
   renderCurrentDefects();
   closeModal('addDefect');
+  ['d-text','d-action','d-deadline','d-repair-doc'].forEach(function(id){ var el=ge(id); if(el) el.value=''; });
+  var noDoc = document.querySelector('input[name="d-doc-required"][value="no"]');
+  if(noDoc) noDoc.click();
+  var repSec = ge('repair-doc-section'); if(repSec) repSec.classList.add('hidden');
   toast('ליקוי נוסף ✅','success');
-  // Clear form
-  ['d-text','d-action','d-deadline','d-repair-doc'].forEach(id=>{ const el=ge(id); if(el) el.value=''; });
-  document.querySelector('input[name="d-doc-required"][value="no"]')?.click();
-  ge('repair-doc-section')?.classList.add('hidden');
 }
 
 function renderCurrentDefects() {
@@ -2790,7 +2814,7 @@ function openReportView(id) {
 }
 
 function importPrevDefects(inspId) {
-  var defs=DB.defects.filter(function(d){return d.inspId===inspId&&d.status==='open';});
+  var defs=DB.defects.filter(function(d){return String(d.inspId||d.inspection_id)===String(inspId)&&d.status==='open';});
   if(!defs.length){toast('אין ליקויים פתוחים בתסקיר זה','warn');return;}
   var card=ge('prev-def-card');var list=ge('prev-def-list');
   if(!card||!list)return;
@@ -2806,235 +2830,21 @@ function importPrevDefects(inspId) {
 }
 
 function importOneDefect(defId, btn) {
-  if(_currentDefects.find(function(d){return d.originId===defId;})){toast('ליקוי זה כבר נוסף','warn');return;}
-  var orig=DB.defects.find(function(x){return x.id===defId;});if(!orig)return;
-  var nd=Object.assign({},orig,{id:nid('defect'),originId:defId,status:'open',
+  if(_currentDefects.find(function(d){return String(d.originId)===String(defId);})){toast('ליקוי זה כבר נוסף','warn');return;}
+  var orig=DB.defects.find(function(x){return String(x.id)===String(defId);});if(!orig)return;
+  var nd=Object.assign({},orig,{
+    id:genUUID(),originId:defId,status:'open',
     createdAt:new Date().toISOString().split('T')[0],inspId:null,
     clientId:(ge('i-client')||{}).value||orig.clientId,
-    equipId:(ge('i-equip')||{}).value||orig.equipId});
-  _currentDefects.push(nd);DB.defects.push(nd);saveDB();renderCurrentDefects();
+    equipId:(ge('i-equip')||{}).value||orig.equipId
+  });
+  _currentDefects.push(nd);
+  renderCurrentDefects();
   btn.textContent='✅';btn.disabled=true;btn.style.opacity='0.6';
-  toast('ליקוי יובא','success');
+  toast('ליקוי הועתק לתסקיר','success');
 }
 
-function filterEquipmentOverdue() {
-  navTo('equipment');
-  setTimeout(function(){
-    var results=DB.equipment.filter(function(e){return daysUntil(e.nextInsp)<0;});
-    renderEquipment(results);
-    toast(results.length+' מתקנים באיחור','warn');
-  },120);
-}
 
-function makeSR(targetId) {
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast('תמלול חי דורש Chrome','warn');return null;}
-  var r=new SR();r.lang='he-IL';r.continuous=true;r.interimResults=true;
-  r.onresult=function(e){
-    var fin='',int_='';
-    for(var i=0;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript+' ';else int_+=e.results[i][0].transcript;}
-    var el=ge(targetId);
-    if(el){if(el.tagName==='TEXTAREA')el.value=fin+(int_?'['+int_+']':'');else el.textContent=fin+(int_?'['+int_+']':'');}
-  };
-  r.onerror=function(e){toast('שגיאת תמלול: '+e.error,'error');};
-  r.start();return r;
-}
-
-var _srMain=null;
-function toggleLiveSpeechMain(){
-  var btn=ge('live-speech-btn'),st=ge('live-speech-status');
-  if(_srMain){_srMain.stop();_srMain=null;if(btn){btn.textContent='🎙 תמלול חי';btn.classList.remove('btn-danger');}if(st)st.style.display='none';}
-  else{_srMain=makeSR('transcript-box');if(_srMain){if(btn){btn.textContent='⏹ עצור';btn.classList.add('btn-danger');}if(st)st.style.display='flex';toast('מתמלל...','info');}}
-}
-
-var _srNotes=null;
-function toggleLiveNotesRec(){
-  var btn=ge('notes-live-btn'),st=ge('notes-live-status');
-  if(_srNotes){_srNotes.stop();_srNotes=null;if(btn){btn.textContent='🎙 תמלול חי';btn.classList.remove('btn-danger');}if(st)st.style.display='none';}
-  else{_srNotes=makeSR('i-findings');if(_srNotes){if(btn){btn.textContent='⏹ עצור';btn.classList.add('btn-danger');}if(st)st.style.display='flex';toast('מתמלל...','info');}}
-}
-
-var _srDef=null;
-function toggleDefectLive(){
-  var btn=ge('def-live-btn'),st=ge('defect-live-status');
-  if(_srDef){_srDef.stop();_srDef=null;if(btn){btn.textContent='🎙';btn.style.background='';}if(st)st.style.display='none';}
-  else{_srDef=makeSR('d-text');if(_srDef){if(btn){btn.textContent='⏹';btn.style.background='var(--rl)';}if(st)st.style.display='flex';toast('מתמלל...','info');}}
-}
-
-function startVideoRec(){toast('הקלטת וידאו תתמך בגרסה הבאה','info');}
-
-async function markSent(id){
-  var i=DB.inspections.find(function(x){return String(x.id)===String(id);});if(!i)return;
-  var ownerEmail=i.ownerEmail||i.owner_email||'';
-  var supEmail=i.supEmail||i.supervisor_email||'';
-  var recipients=[ownerEmail,supEmail].filter(Boolean);
-  if(!recipients.length){toast('אין כתובת מייל לתסקיר זה','warn');return;}
-  var sb=getSB();
-  if(!sb)return;
-  toast('מייצר PDF ושולח...','info');
-  var filePath = await generateAndUploadPDF(id);
-  try {
-    var r = await sb.functions.invoke('swift-service', {
-      body: {
-        to: recipients,
-        subject: 'תסקיר בדיקה הנדסי - '+(i.inspection_num||i.num||''),
-        body: (function(){
-          var pdfUrl = '';
-          if(filePath) { var pu=sb.storage.from('reports').getPublicUrl(filePath); if(pu.data) pdfUrl=pu.data.publicUrl; }
-          return 'שלום רב, מצ"ב קישור להורדת תסקיר בדיקה מספר '+(i.inspection_num||i.num||'')+'.' +
-            (pdfUrl ? '\n\nלהורדת התסקיר: '+pdfUrl : '') +
-            '\n\nתוצאה: '+i.result+'.\n\nבברכה, '+(i.inspector_name||i.inspector||DB.settings.name||'InspectPro');
-        })(),
-      }
-    });
-    if(r.error) throw r.error;
-    await sb.from('inspections').update({is_sent:true}).eq('id',id);
-    await loadFromSupabase(_user.id);
-    renderReports();
-    toast('תסקיר נשלח בהצלחה! 📧','success');
-  } catch(err) {
-    console.error('שגיאה:', err);
-    toast('שגיאה בשליחה','error');
-  }
-}
-
-// ════════════════════════════════════════════════════════
-// BILLING
-// ════════════════════════════════════════════════════════
-function renderBilling() {
-  var invoices = (DB.inspections||[]).filter(function(i){return i.amount>0;});
-  var total = invoices.reduce(function(a,i){return a+(i.amount||0);},0);
-  ge('billing-stats').innerHTML=[
-    ['סה"כ הכנסות','₪'+total.toLocaleString(),'green'],
-    ['תסקירים',''+invoices.length,'blue'],
-  ].map(function(x){return '<div class="stat"><div class="stat-label">'+x[0]+'</div><div class="stat-value" style="color:var(--'+x[2]+')">'+x[1]+'</div></div>';}).join('');
-  ge('billing-tbl').innerHTML=invoices.map(function(i){
-    var cl = DB.clients.find(function(c){return c.id===i.clientId||c.id===i.client_id;})||{};
-    return '<tr><td>'+esc(cl.name||'—')+'</td>'+
-      '<td style="font-size:12px">'+fmt(i.date||i.inspection_date)+'</td>'+
-      '<td style="font-weight:700;font-family:IBM Plex Mono,monospace;color:var(--green)">₪'+(i.amount||0).toLocaleString()+'</td>'+
-      '<td>'+pill('שולם','green')+'</td>'+
-      '<td>—</td></tr>';
-  }).join('');
-}
-function markPaid(id){}
-
-// ════════════════════════════════════════════════════════
-// CALENDAR
-// ════════════════════════════════════════════════════════
-function renderCalendar() {
-  const upcoming=DB.equipment.filter(e=>daysUntil(e.nextInsp)<=90).sort((a,b)=>daysUntil(a.nextInsp)-daysUntil(b.nextInsp));
-  ge('cal-tbl').innerHTML=upcoming.map(e=>{
-    const d=daysUntil(e.nextInsp);
-    return `<tr>
-      <td><span>${typeIcon(e.type)}</span> ${esc(e.brand)} ${esc(e.model)}</td>
-      <td>${esc(cln(e.clientId))}</td>
-      <td style="font-size:12px">${fmt(e.nextInsp)}</td>
-      <td style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:${d<0?'var(--red)':d<=14?'var(--orange)':'var(--text3)'}">${d>0?'+':''}${d}</td>
-      <td>${eqStatusPill(e)}</td>
-      <td><button class="btn btn-primary btn-xs" onclick="startInspFor(${e.id})">בדוק</button></td>
-    </tr>`;
-  }).join('');
-}
-
-// ════════════════════════════════════════════════════════
-// MODELS
-// ════════════════════════════════════════════════════════
-const MODELS_DB = [
-  {id:'bl-001',type:'boiler',brand:'Bosch',model:'Unimat UM-40',mwp:'10 בר',freq:'14 חודשים',std:'פקודת הבטיחות תש"ל-1970; IS 60'},
-  {id:'bl-002',type:'boiler',brand:'Cleaver Brooks',model:'CB-200',mwp:'12 בר',freq:'14 חודשים',std:'ASME Section I; IS 60'},
-  {id:'fl-001',type:'forklift',brand:'Toyota',model:'8FBM25',mwp:'2.5T',freq:'12 חודשים',std:'ISO 3691-1; EN 16307-1'},
-  {id:'fl-002',type:'forklift',brand:'Linde',model:'E20 (387)',mwp:'2.0T',freq:'12 חודשים',std:'ISO 3691-1; EN 16307-1'},
-  {id:'ac-001',type:'air-collector',brand:'Atlas Copco',model:'GA 37',mwp:'11 בר',freq:'14 חודשים',std:'IS 60; PED 2014/68/EU'},
-  {id:'cb-001',type:'crane-bridge',brand:'Demag',model:'DRS-10',mwp:'10T',freq:'12 חודשים',std:'ISO 4301; EN 13001'},
-];
-
-function renderModels(data) {
-  const list = data || MODELS_DB;
-  ge('models-grid').innerHTML = list.map(m=>`
-    <div class="card" style="cursor:pointer" onclick="viewModel('${m.id}')">
-      <div class="card-header"><span>${typeIcon(m.type)}</span><h3>${esc(m.brand)} ${esc(m.model)}</h3></div>
-      <div class="card-body" style="font-size:12px">
-        <div class="mb2">⚡ ${esc(m.mwp)}</div>
-        <div class="mb2">📅 תדירות: ${esc(m.freq)}</div>
-        <div style="font-size:10px;color:var(--text3)">${esc(m.std)}</div>
-      </div>
-    </div>`).join('');
-}
-
-function filterModels(q) {
-  const lq=(q||'').toLowerCase();
-  const results=MODELS_DB.filter(m=>!lq||[m.brand,m.model,m.type,m.std].join(' ').toLowerCase().includes(lq));
-  ge('models-grid').innerHTML=results.map(m=>`
-    <div class="card" style="cursor:pointer" onclick="viewModel('${m.id}')">
-      <div class="card-header"><span>${typeIcon(m.type)}</span><h3>${esc(m.brand)} ${esc(m.model)}</h3></div>
-      <div class="card-body" style="font-size:12px"><div class="mb2">${esc(m.mwp)}</div><div>${esc(m.freq)}</div></div>
-    </div>`).join('');
-}
-
-function viewModel(id) {
-  const m = MODELS_DB.find(x=>x.id===id);
-  if(!m) return;
-  ge('mdl-title').textContent = `${m.brand} ${m.model}`;
-  ge('mdl-body').innerHTML = `
-    <div class="g2 mb3">
-      <div><div class="text-muted mb2">סוג מתקן</div><strong>${typeLabel(m.type)}</strong></div>
-      <div><div class="text-muted mb2">לחץ / עומס</div><strong>${m.mwp}</strong></div>
-      <div><div class="text-muted mb2">תדירות בדיקה</div><strong>${m.freq}</strong></div>
-      <div><div class="text-muted mb2">תקן</div><div style="font-size:12px">${m.std}</div></div>
-    </div>`;
-  openModal('viewModel');
-}
-
-// ════════════════════════════════════════════════════════
-// SETTINGS
-// ════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════
-// SETTINGS & SIGNATURE
-// ════════════════════════════════════════════════════════
-function renderSettings() {
-  const s = DB.settings;
-  if(ge('s-name')) ge('s-name').value=s.name||'';
-  if(ge('s-lic')) ge('s-lic').value=s.lic||'';
-  if(ge('s-phone')) ge('s-phone').value=s.phone||'';
-  if(ge('s-email')) ge('s-email').value=s.email||'';
-  const c = ge('settings-sig-canvas');
-  if(c && s.signature) {
-    const ctx = c.getContext('2d');
-    const img = new Image();
-    img.onload = () => { ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(img,0,0); };
-    img.src = s.signature;
-  }
-}
-
-function saveSettings() {
-  let sigData = (DB.settings && DB.settings.signature) ? DB.settings.signature : '';
-  const c = ge('settings-sig-canvas');
-  if (c && !isCanvasBlank(c)) {
-    var newSig = c.toDataURL('image/png');
-    if (newSig !== sigData) {
-      var tmp=document.createElement('canvas');
-      var ratio=Math.min(1, 400/Math.max(c.width,1));
-      tmp.width=Math.round(c.width*ratio); tmp.height=Math.round(c.height*ratio);
-      tmp.getContext('2d').drawImage(c, 0, 0, tmp.width, tmp.height);
-      sigData = tmp.toDataURL('image/jpeg', 0.85);
-    }
-  }
-  DB.settings = {
-    name: ge('s-name').value||'',
-    lic: ge('s-lic').value||'',
-    phone: ge('s-phone').value||'',
-    email: ge('s-email').value||'',
-    signature: sigData
-  };
-  ge('sb-user').textContent = DB.settings.name + ' – בודק מוסמך';
-  saveDB();
-  toast('הגדרות וחתימה נשמרו ✅','success');
-}
-
-// ════════════════════════════════════════════════════════
-// SUBMIT INSPECTION
-// ════════════════════════════════════════════════════════
 function setResult(r, btn) {
   document.querySelectorAll('#result-btns button').forEach(b=>{ b.style.fontWeight=''; b.style.boxShadow=''; });
   if(btn) { btn.style.fontWeight='900'; btn.style.boxShadow='0 0 0 3px rgba(26,86,219,.3)'; }
@@ -3057,21 +2867,29 @@ async function submitReport(doSend) {
   var sendOnSave = doSend || (ge('i-send-on-save') && ge('i-send-on-save').checked);
   var nextDate = (ge('i-valid-until')||{}).value||'';
   var findingsText = (ge('i-findings')||{}).value||'';
+  // איסוף תמונות + העלאה ל-Storage
   var photosRaw = [];
   document.querySelectorAll('.media-thumb img').forEach(function(img){ photosRaw.push(img.src); });
   document.querySelectorAll('.media-thumb video').forEach(function(vid){ if(vid.src) photosRaw.push(vid.src); });
+  var photos = [];
+  for(var pi=0; pi<photosRaw.length; pi++) {
+    var pUrl = photosRaw[pi].startsWith('data:')
+      ? await uploadPhotoToStorage(photosRaw[pi], num, pi)
+      : photosRaw[pi];
+    photos.push(pUrl);
+  }
 
-  var inspData = {
+    var inspData = {
     id: inspId, user_id: _user.id, client_id: cId, equipment_id: eId,
     inspection_num: num,
     inspection_date: (ge('i-date')||{}).value || new Date().toISOString().split('T')[0],
     inspection_type: (ge('i-insp-type')||{}).value||'periodic-14',
     result: result,
     inspector_name: (ge('i-inspector')||{}).value || (DB.settings&&DB.settings.name)||'',
-    score: parseInt((ge('i-score')||{}).value)||80,
+    score: (function(){ var v=parseInt((ge('i-score')||{}).value); return isNaN(v)?null:v; })(),
     findings: findingsText,
     checklist_data: DB.currentInsp ? DB.currentInsp.checklist : {},
-    photos: photosRaw,
+    photos: photos,
     amount: parseInt((ge('i-amount')||{}).value)||0,
     owner_email: ownerEmail, supervisor_email: supEmail, is_sent: !!sendOnSave
   };
@@ -3975,6 +3793,104 @@ window.addEventListener('DOMContentLoaded', function() {
   if (ge('i-date')) { ge('i-date').value=today; ge('i-date').addEventListener('change', calcNextInspDate); }
   if (ge('i-insp-type')) ge('i-insp-type').addEventListener('change', calcNextInspDate);
 });
+
+// ════════════════════════════════════════════════════════
+// SPEECH RECOGNITION (Live Transcription)
+// ════════════════════════════════════════════════════════
+function makeSR(targetId) {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('תמלול חי דורש Chrome','warn'); return null; }
+  var r = new SR();
+  r.lang = 'he-IL';
+  r.continuous = true;
+  r.interimResults = true;
+  var _finalText = ''; // accumulates only final results
+  r.onresult = function(e) {
+    var newFinal = '', interim = '';
+    // Use e.resultIndex to avoid processing old results (fixes triple-word bug)
+    for(var i = e.resultIndex; i < e.results.length; i++) {
+      if(e.results[i].isFinal) newFinal += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
+    }
+    _finalText += newFinal;
+    var el = ge(targetId);
+    if(el) {
+      var display = _finalText + (interim ? '[' + interim + ']' : '');
+      if(el.tagName === 'TEXTAREA') el.value = display;
+      else el.textContent = display;
+    }
+  };
+  r.onerror = function(e) { toast('שגיאת תמלול: ' + e.error, 'error'); };
+  r.start();
+  return r;
+}
+
+var _srMain = null;
+function toggleLiveSpeechMain() {
+  var btn = ge('live-speech-btn'), st = ge('live-speech-status');
+  if(_srMain) {
+    _srMain.stop(); _srMain = null;
+    if(btn) { btn.textContent = '🎙 תמלול חי'; btn.classList.remove('btn-danger'); }
+    if(st) st.style.display = 'none';
+  } else {
+    _srMain = makeSR('transcript-box');
+    if(_srMain) {
+      if(btn) { btn.textContent = '⏹ עצור'; btn.classList.add('btn-danger'); }
+      if(st) st.style.display = 'flex';
+    }
+  }
+}
+
+var _srNotes = null;
+function toggleLiveNotesRec() {
+  var btn = ge('notes-live-btn'), st = ge('notes-live-status');
+  if(_srNotes) {
+    _srNotes.stop(); _srNotes = null;
+    if(btn) { btn.textContent = '🎙 תמלול חי'; btn.classList.remove('btn-danger'); }
+    if(st) st.style.display = 'none';
+  } else {
+    _srNotes = makeSR('i-findings');
+    if(_srNotes) {
+      if(btn) { btn.textContent = '⏹ עצור'; btn.classList.add('btn-danger'); }
+      if(st) st.style.display = 'flex';
+    }
+  }
+}
+
+var _srDef = null;
+function toggleDefectLive() {
+  var btn = ge('def-live-btn'), st = ge('defect-live-status');
+  if(_srDef) {
+    _srDef.stop(); _srDef = null;
+    if(btn) { btn.textContent = '🎙'; btn.style.background = ''; }
+    if(st) st.style.display = 'none';
+  } else {
+    _srDef = makeSR('d-text');
+    if(_srDef) {
+      if(btn) { btn.textContent = '⏹'; btn.style.background = 'var(--red)'; }
+      if(st) st.style.display = 'flex';
+    }
+  }
+}
+
+
+async function uploadPhotoToStorage(base64Data, inspNum, idx) {
+  try {
+    var sb = getSB();
+    if(!sb || !_user) return base64Data;
+    var byteStr = atob(base64Data.split(',')[1]);
+    var ab = new ArrayBuffer(byteStr.length);
+    var ia = new Uint8Array(ab);
+    for(var i=0;i<byteStr.length;i++) ia[i]=byteStr.charCodeAt(i);
+    var blob = new Blob([ab], {type:'image/jpeg'});
+    var path = _user.id+'/'+inspNum+'/photo_'+idx+'_'+Date.now()+'.jpg';
+    var res = await sb.storage.from('reports').upload(path, blob, {contentType:'image/jpeg'});
+    if(res.error) return base64Data;
+    var urlRes = sb.storage.from('reports').getPublicUrl(path);
+    return (urlRes.data && urlRes.data.publicUrl) ? urlRes.data.publicUrl : base64Data;
+  } catch(e) { return base64Data; }
+}
+
 </script>
 
 </body>
