@@ -375,6 +375,7 @@ button{cursor:pointer;}
     <div class="topbar-right">
       <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 CSV</button>
       <button class="btn btn-primary btn-sm" onclick="navTo('inspection')">+ תסקיר</button>
+            <button class="btn btn-secondary btn-sm" onclick="startMultiAccInsp()" title="תסקיר מרוכז לאביזרי הרמה">📦 מרוכז</button>
       <div style="position:relative">
         <button id="avatar-btn" onclick="toggleProfileMenu()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#7c3aed);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700" title="פרופיל">👤</button>
         <div id="profile-menu" style="display:none;position:absolute;left:0;top:44px;background:#fff;border:1px solid #dde3ef;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:160px;z-index:9999;overflow:hidden">
@@ -491,6 +492,9 @@ button{cursor:pointer;}
               <div id="multi-acc-select-card" class="card mb3" style="display:none;border:2px solid var(--blue);border-radius:var(--r2);">
                 <div class="card-header" style="background:var(--blue-bg)"><span>📦</span><h3>בחר אביזרי הרמה לבדיקה</h3></div>
                 <div class="card-body">
+                  <div class="alert alert-info mb2" style="font-size:12px;padding:8px 12px;">
+                    <strong>הוראות:</strong> בחר לקוח ← סמן אביזרים ← עבור לטאב "צ׳ק-ליסט" לסמן תקין/ליקוי לכל אחד
+                  </div>
                   <div id="multi-acc-list" style="max-height:260px;overflow-y:auto;">
                     <div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה</div>
                   </div>
@@ -500,15 +504,13 @@ button{cursor:pointer;}
               <div class="form-group mb3">
                 <label>סוג מתקן</label>
                 <select id="i-type" onchange="updateChecklist()">
-                  <option value="">בחר סוג...</option>
                   <optgroup label="🔥 מתקני לחץ">
                     <option value="boiler">דוד קיטור – בדיקה קרה</option>
-          <option value="boiler-hot">דוד קיטור – בדיקה חמה</option>
-          <option value="boiler-hydro">דוד קיטור – הידרוסטטי</option>
-                    <option value="steam-collector">קולט קיטור</option>
+                    <option value="boiler-hot">דוד קיטור – בדיקה חמה</option>
+                    <option value="boiler-hydro">דוד קיטור – הידרוסטטית</option>
                     <option value="air-collector">קולט אוויר / קומפרסור</option>
                     <option value="autoclave">אוטוקלב</option>
-                    <option value="pressure-vessel">מיכל לחץ</option>
+                    <option value="pressure-vessel">כלי לחץ</option>
                   </optgroup>
                   <optgroup label="🏗️ מתקני הרמה">
                     <option value="forklift">מלגזה</option>
@@ -517,16 +519,21 @@ button{cursor:pointer;}
                     <option value="crane-tower">מנוף צריח</option>
                     <option value="crane-mobile">מנוף נייד</option>
                     <option value="aerial-platform">במת הרמה / נאקל</option>
-                    <option value="elevator">מעלית / הרמון</option>
                     <option value="lift-platform">שולחן הרמה</option>
-                    <option value="vehicle-hoist">ליפט רכב</option>
                   </optgroup>
                   <optgroup label="⛓️ אביזרי הרמה">
                     <option value="chain">שרשרת הרמה</option>
                     <option value="hook">ווי הרמה</option>
                     <option value="sling-textile">רצועת טקסטיל</option>
                     <option value="sling-wire">כבל פלדה</option>
-                    <option value="spreader-beam">קרן מרחיקה</option>
+                    <option value="spreader-beam">קורת הרמה</option>
+                    <option value="shackle">שאקל / צלחת</option>
+                    <option value="rope">חבל פלדה</option>
+                  </optgroup>
+                  <optgroup label="🔧 אחר">
+                    <option value="elevator">מעלית</option>
+                    <option value="playground">מתקן משחקים</option>
+                    <option value="other">אחר</option>
                   </optgroup>
                 </select>
               </div>
@@ -617,7 +624,7 @@ button{cursor:pointer;}
                     <option value="other">אחר</option>
                   </optgroup>
                   <optgroup label="📦 בדיקה מרוכזת">
-                    <option value="multi-acc">בדיקה מרוכזת – אביזרי הרמה</option>
+                    <option value="multi-acc">📦 בדיקה מרוכזת – אביזרי הרמה (שרשראות, ווים, רצועות...)</option>
                   </optgroup>
                   <optgroup label="דוד קיטור" id="boiler-options" style="display:none">
                     <option value="boiler-cold">דוד קיטור – בדיקה קרה</option>
@@ -658,7 +665,7 @@ button{cursor:pointer;}
       <div class="insp-tab-content" id="itab-1">
         <div class="card mb4">
           <div class="card-header">
-            <span>✓</span><h3>רשימת בדיקה</h3>
+            <span id="checklist-tab-icon">✓</span><h3 id="checklist-tab-title">רשימת בדיקה</h3>
             <div style="font-size:12px;color:var(--text3)" id="checklist-progress">0/0 בוצעו</div>
           </div>
           <div class="card-body">
@@ -975,21 +982,38 @@ button{cursor:pointer;}
       </div>
       <div class="flex gap2" style="flex-wrap:wrap">
         <select id="cl-type-sel" onchange="renderChecklistEditor()" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:var(--r2);font-size:13px;min-width:160px">
-          <option value="boiler">דוד קיטור</option>
-          <option value="steam-collector">קולט קיטור</option>
-          <option value="air-collector">קולט אוויר</option>
-          <option value="autoclave">אוטוקלאב</option>
-          <option value="crane-tower">עגורן צריח</option>
-          <option value="crane-mobile">עגורן נייד</option>
-          <option value="crane-bridge">עגורן גשר</option>
-          <option value="forklift">מלגזה</option>
-          <option value="aerial-platform">במת הרמה</option>
-          <option value="elevator">מעלית</option>
-          <option value="chain">שרשרת הרמה</option>
-          <option value="hook">אונקל</option>
-          <option value="sling-wire">כבל פלדה</option>
-          <option value="sling-textile">רצועת אריג</option>
-        </select>
+            <optgroup label="🔥 מתקני לחץ">
+              <option value="boiler">דוד קיטור – בדיקה קרה</option>
+              <option value="boiler-hot">דוד קיטור – בדיקה חמה</option>
+              <option value="boiler-hydro">דוד קיטור – הידרוסטטית</option>
+              <option value="air-collector">קולט אוויר / קומפרסור</option>
+              <option value="autoclave">אוטוקלב</option>
+              <option value="pressure-vessel">כלי לחץ</option>
+            </optgroup>
+            <optgroup label="🏗️ מתקני הרמה">
+              <option value="forklift">מלגזה</option>
+              <option value="crane-bridge">עגורן גשר</option>
+              <option value="crane-jib">מנוף זרוע</option>
+              <option value="crane-tower">מנוף צריח</option>
+              <option value="crane-mobile">מנוף נייד</option>
+              <option value="aerial-platform">במת הרמה / נאקל</option>
+              <option value="lift-platform">שולחן הרמה</option>
+            </optgroup>
+            <optgroup label="⛓️ אביזרי הרמה">
+              <option value="chain">שרשרת הרמה</option>
+              <option value="hook">ווי הרמה</option>
+              <option value="sling-textile">רצועת טקסטיל</option>
+              <option value="sling-wire">כבל פלדה</option>
+              <option value="spreader-beam">קורת הרמה</option>
+              <option value="shackle">שאקל / צלחת</option>
+              <option value="rope">חבל פלדה</option>
+            </optgroup>
+            <optgroup label="🔧 אחר">
+              <option value="elevator">מעלית</option>
+              <option value="playground">מתקן משחקים</option>
+              <option value="other">אחר</option>
+            </optgroup>
+          </select>
         <button class="btn btn-secondary btn-sm" onclick="addChecklistSection()">+ קבוצה חדשה</button>
         <button class="btn btn-success btn-sm" onclick="saveChecklistChanges()">💾 שמור שינויים</button>
       </div>
@@ -1025,15 +1049,34 @@ button{cursor:pointer;}
         <div class="form-group">
           <label>סוג מתקן</label>
           <select id="eq-type">
-            <option value="boiler">דוד קיטור</option>
-            <option value="air-collector">קולט אוויר</option>
-            <option value="forklift">מלגזה</option>
-            <option value="crane-bridge">עגורן גשר</option>
-            <option value="crane-jib">מנוף זרוע</option>
-            <option value="aerial-platform">במת הרמה</option>
-            <option value="chain">שרשרת</option>
-            <option value="other">אחר</option>
-          </select>
+              <optgroup label="🔥 מתקני לחץ">
+                <option value="boiler">דוד קיטור</option>
+                <option value="air-collector">קולט אוויר</option>
+                <option value="autoclave">אוטוקלב</option>
+              </optgroup>
+              <optgroup label="🏗️ מתקני הרמה">
+                <option value="forklift">מלגזה</option>
+                <option value="crane-bridge">עגורן גשר</option>
+                <option value="crane-jib">מנוף זרוע</option>
+                <option value="aerial-platform">במת הרמה</option>
+                <option value="lift-platform">שולחן הרמה</option>
+              </optgroup>
+              <optgroup label="⛓️ אביזרי הרמה">
+                <option value="chain">שרשרת הרמה</option>
+                <option value="hook">ווי הרמה</option>
+                <option value="sling-textile">רצועת טקסטיל</option>
+                <option value="sling-wire">כבל פלדה</option>
+                <option value="spreader-beam">קורת הרמה</option>
+                <option value="shackle">שאקל / צלחת</option>
+                <option value="rope">חבל פלדה</option>
+              </optgroup>
+              <optgroup label="🔧 אחר">
+                <option value="elevator">מעלית</option>
+                <option value="playground">מתקן משחקים</option>
+                <option value="pressure-vessel">כלי לחץ</option>
+                <option value="other">אחר</option>
+              </optgroup>
+            </select>
         </div>
         <div class="form-group" style="position:relative">
           <label>יצרן</label>
@@ -1635,15 +1678,6 @@ function deleteItemByEl(btn) {
     CHECKLISTS[type][section]=CHECKLISTS[type][section].filter(function(x){return x.id!==id;});
   renderChecklistEditor();
 }
-function deleteSectionByEl(btn) {
-  var card=btn.closest('[data-section]');
-  var type=(ge('cl-type-sel')||{}).value||'boiler';
-  var section=card?card.getAttribute('data-section'):'';
-  if(!section){toast('שגיאה','error');return;}
-  if(!confirm('מחוק את הקבוצה "'+section+'" וכל פריטיה?')) return;
-  if(CHECKLISTS[type]) delete CHECKLISTS[type][section];
-  renderChecklistEditor();
-}
 function addItemByEl(btn) {
   var card=btn.closest('[data-section]');
   var type=(ge('cl-type-sel')||{}).value||'boiler';
@@ -1681,7 +1715,7 @@ function renderChecklistEditor() {
       '<div class="card-header" style="background:var(--s2)">' +
       '<span>📁</span>' +
       '<input type="text" value="'+esc(section)+'" data-orig="'+esc(section)+'" data-type="'+type+'" style="flex:1;border:none;background:transparent;font-size:14px;font-weight:700;outline:none" onchange="renameSectionEl(this)">' +
-      '<button class="btn btn-danger btn-xs" onclick="deleteSectionByEl(this)">🗑 מחק קבוצה</button>' +
+      '<button class="btn btn-danger btn-xs" data-del-type="'+type+'" data-del-section="'+esc(section)+'" onclick="deleteSection(this,this.dataset.delType,this.dataset.delSection)">🗑 מחק קבוצה</button>' +
       '</div>' +
       '<div class="checklist-edit-items" style="padding:8px 16px">' +
       items.map(function(item, idx) {
@@ -1753,14 +1787,25 @@ function addItem(btn, type, section) {
 }
 
 function addChecklistSection() {
-  const type = (ge('cl-type-sel')||{}).value || 'boiler';
-  const name = prompt('שם הקבוצה החדשה:');
-  if(!name || !name.trim()) return;
-  if(!CHECKLISTS[type]) CHECKLISTS[type] = {};
-  CHECKLISTS[type][name.trim()] = [];
-  renderChecklistEditor();
-  toast('קבוצה "'+name+'" נוספה','success');
+  openModal('addChecklistGroup');
+  var inp = ge('new-cl-group-name');
+  if(inp) { inp.value = ''; setTimeout(function(){ inp.focus(); }, 100); }
 }
+
+function confirmAddChecklistSection() {
+  var type = (ge('cl-type-sel')||{}).value || 'boiler';
+  var nameInp = ge('new-cl-group-name');
+  var name = nameInp ? nameInp.value.trim() : '';
+  if(!name) { toast('נא להזין שם לקבוצה','error'); return; }
+  if(!CHECKLISTS[type]) CHECKLISTS[type] = {};
+  if(CHECKLISTS[type][name]) { toast('קבוצה בשם זה כבר קיימת','error'); return; }
+  CHECKLISTS[type][name] = [];
+  renderChecklistEditor();
+  closeModal('addChecklistGroup');
+  toast('קבוצה "'+name+'" נוספה','success');
+  saveChecklistChanges();
+}
+
 
 function saveChecklistChanges() {
   try {
@@ -1862,7 +1907,7 @@ const INSP_TYPE_LABELS = {
 function inspTypeLabel(t) { return INSP_TYPE_LABELS[t] || t || '—'; }
 
 function typeLabel(t) {
-  const labels = {boiler:'דוד קיטור','steam-collector':'קולט קיטור','air-collector':'קולט אוויר','autoclave':'אוטוקלב','pressure-vessel':'מיכל לחץ',forklift:'מלגזה','crane-bridge':'עגורן גשר','crane-jib':'מנוף זרוע','crane-tower':'מנוף צריח','crane-mobile':'מנוף נייד','aerial-platform':'במת הרמה',elevator:'מעלית','lift-platform':'שולחן הרמה','vehicle-hoist':'ליפט רכב',chain:'שרשרת',hook:'ווי הרמה','sling-textile':'רצועת טקסטיל','sling-wire':'כבל פלדה'};
+  const labels = {boiler:'דוד קיטור','steam-collector':'קולט קיטור','air-collector':'קולט אוויר','autoclave':'אוטוקלב','pressure-vessel':'מיכל לחץ',forklift:'מלגזה','crane-bridge':'עגורן גשר','crane-jib':'מנוף זרוע','crane-tower':'מנוף צריח','crane-mobile':'מנוף נייד','aerial-platform':'במת הרמה',elevator:'מעלית','lift-platform':'שולחן הרמה','vehicle-hoist':'ליפט רכב',chain:'שרשרת',hook:'ווי הרמה','sling-textile':'רצועת טקסטיל','sling-wire':'כבל פלדה','spreader-beam':'קורת פיזור'};
   return labels[t]||t;
 }
 function typeClass(t) {
@@ -2574,6 +2619,10 @@ function onInspTypeChange() {
   if(isMultiAcc) {
     renderMultiAccList();
     renderMultiAccTable();
+    var tab1Btn = document.querySelectorAll('.insp-tab')[1];
+    if(tab1Btn) tab1Btn.innerHTML = '2️⃣ טבלת אביזרים 📦';
+    var hIcon = ge('checklist-tab-icon'); if(hIcon) hIcon.textContent='📦';
+    var hTitle = ge('checklist-tab-title'); if(hTitle) hTitle.textContent='טבלת אביזרים מרוכזת';
     return;
   }
 
@@ -2591,18 +2640,30 @@ function onInspTypeChange() {
 // ════════════════════════════════════════════════════════
 // MULTI-ACC INSPECTION
 // ════════════════════════════════════════════════════════
-var ACC_TYPES = ['chain','hook','sling-textile','sling-wire','spreader-beam'];
+var ACC_TYPES = ['chain','hook','sling-textile','sling-wire','spreader-beam','shackle','rope','clamp'];
 
 function renderMultiAccList() {
   var list = ge('multi-acc-list');
   if(!list) return;
   var cId = (ge('i-client')||{}).value;
-  if(!cId) { list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה</div>'; return; }
-  var accItems = DB.equipment.filter(function(e){
-    return String(e.clientId||e.client_id) === String(cId) && ACC_TYPES.includes(e.type);
+  if(!cId) {
+    list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">בחר לקוח תחילה כדי לטעון אביזרים</div>';
+    return;
+  }
+  // All equipment for this client (both field name variants)
+  var clientEquip = DB.equipment.filter(function(e){
+    return String(e.clientId||e.client_id||'') === String(cId);
+  });
+  // Filter to lifting accessory types only
+  var accItems = clientEquip.filter(function(e){
+    return ACC_TYPES.includes(String(e.type||''));
   });
   if(!accItems.length) {
-    list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center">לא נמצאו אביזרי הרמה ללקוח זה</div>';
+    if(clientEquip.length > 0) {
+      list.innerHTML = '<div class="alert alert-warn" style="margin:10px;font-size:12px;">ללקוח זה יש <strong>'+clientEquip.length+'</strong> מתקנים, אך אף אחד מוגדר כאביזר הרמה.<br>הוסף אביזרים (שרשרת/רצועה/וו) דרך "+ מתקן חדש".</div>';
+    } else {
+      list.innerHTML = '<div class="text-muted" style="padding:16px;text-align:center;font-size:12px;">לא נמצא ציוד ללקוח זה. הוסף אביזרים למאגר תחילה.</div>';
+    }
     return;
   }
   list.innerHTML = accItems.map(function(e) {
@@ -2612,11 +2673,11 @@ function renderMultiAccList() {
       ' | מ.מ: ' + esc(e.serial_number||e.serial||'—') +
       ' | SWL: ' + esc(e.mwp||'—') + ' ' + esc(e.mwp_unit||'');
     return '<label class="flex fac gap2" style="padding:10px;border-bottom:1px solid var(--bdr);cursor:pointer;" data-equip-id="'+eId+'">' +
-      '<input type="checkbox" ' + checked + '>' +
+      '<input type="checkbox" ' + checked + ' style="width:18px;height:18px">' +
       '<span style="font-size:13px;">' + label + '</span>' +
       '</label>';
   }).join('');
-  // Attach checkbox events via delegation
+  // Attach checkbox events
   ge('multi-acc-list').querySelectorAll('label[data-equip-id]').forEach(function(label) {
     label.querySelector('input[type=checkbox]').addEventListener('change', function() {
       toggleMultiAccItem(label.getAttribute('data-equip-id'), this.checked);
@@ -4171,7 +4232,43 @@ function viewModel(id) {
   document.body.appendChild(modal);
 }
 
+
+// ── Quick start for multi-acc inspection ──
+function startMultiAccInsp() {
+  navTo('inspection');
+  setTimeout(function() {
+    var sel = ge('i-insp-type');
+    if(sel) {
+      sel.value = 'multi-acc';
+      onInspTypeChange();
+      // Scroll to client selector
+      var cSel = ge('i-client');
+      if(cSel) cSel.focus();
+      toast('בחר לקוח ואז סמן אביזרים לבדיקה 📦','info');
+    }
+  }, 200);
+}
+
 </script>
 
+
+  <!-- Modal: Add Checklist Group -->
+  <div class="overlay" id="modal-addChecklistGroup">
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header"><span>📁</span><h3>קבוצת בדיקה חדשה</h3>
+        <button class="modal-close" onclick="closeModal('addChecklistGroup')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>שם הקבוצה</label>
+          <input type="text" id="new-cl-group-name" placeholder="לדוגמה: בדיקת מערכת הידראולית...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addChecklistGroup')">ביטול</button>
+        <button class="btn btn-primary" onclick="confirmAddChecklistSection()">💾 הוסף קבוצה</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
